@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npm run *)",
+      "Bash(npm ls *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(vite *)",
+      "Bash(curl http://localhost:*)",
+      "Bash(curl -s http://localhost:*)"
+    ]
+  }
+}

@@ -1,0 +1,104 @@
+import { useEffect, useState } from "react";
+import { TEMPLATES } from "@resume-maker/shared";
+
+import TemplateGallery from "./components/TemplateGallery/index.jsx";
+import FormPanel from "./components/Builder/FormPanel/index.jsx";
+import PreviewPanel from "./components/Builder/PreviewPanel/index.jsx";
+import JDInput from "./components/Builder/JDInput.jsx";
+import { Button } from "./components/shared/ui.jsx";
+import { useResumeStore } from "./state/resumeStore.js";
+import { useAppStore } from "./state/appStore.js";
+import { downloadPDF, getHealth, validateATS } from "./api/client.js";
+
+function Header() {
+  const resumeData = useResumeStore((s) => s.resumeData);
+  const setTemplate = useResumeStore((s) => s.setTemplate);
+  const setView = useAppStore((s) => s.setView);
+  const backendUp = useAppStore((s) => s.backendUp);
+  const atsReport = useAppStore((s) => s.atsReport);
+  const setAtsReport = useAppStore((s) => s.setAtsReport);
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleDownload() {
+    setBusy(true);
+    setError(null);
+    try {
+      setAtsReport(await validateATS(resumeData));
+      await downloadPDF(resumeData, resumeData.meta.selectedTemplateId);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => setView("gallery")}
+          className="text-sm font-semibold text-slate-900 hover:text-slate-600"
+        >
+          Resume Builder
+        </button>
+        <select
+          value={resumeData.meta.selectedTemplateId}
+          onChange={(e) => setTemplate(e.target.value)}
+          className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700"
+        >
+          {TEMPLATES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {atsReport?.warnings?.length ? (
+          <span
+            className="cursor-help text-xs text-amber-600"
+            title={atsReport.warnings.map((w) => w.message).join("\n")}
+          >
+            {atsReport.warnings.length} ATS warning
+            {atsReport.warnings.length > 1 ? "s" : ""}
+          </span>
+        ) : null}
+        {error ? <span className="text-xs text-red-500">{error}</span> : null}
+        <Button onClick={handleDownload} disabled={busy || !backendUp}>
+          {busy ? "Preparing..." : "Download PDF"}
+        </Button>
+      </div>
+    </header>
+  );
+}
+
+export default function App() {
+  const view = useAppStore((s) => s.view);
+  const setHealth = useAppStore((s) => s.setHealth);
+
+  useEffect(() => {
+    getHealth()
+      .then((h) => setHealth({ backendUp: true, aiEnabled: h.aiEnabled }))
+      .catch(() => setHealth({ backendUp: false, aiEnabled: false }));
+  }, [setHealth]);
+
+  if (view === "gallery") return <TemplateGallery />;
+
+  return (
+    <div className="flex h-full flex-col">
+      <Header />
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
+        <div className="min-h-0 overflow-y-auto border-r border-slate-200 bg-white">
+          <JDInput />
+          <FormPanel />
+        </div>
+        <div className="hidden min-h-0 lg:block">
+          <PreviewPanel />
+        </div>
+      </div>
+    </div>
+  );
+}
