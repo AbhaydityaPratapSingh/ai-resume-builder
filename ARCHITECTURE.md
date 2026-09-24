@@ -520,13 +520,13 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 
 ### Phase 2.5 — Better analysis (2–3 weeks)
 
-- [ ] Monorepo with `packages/schema`, `packages/templates`, `packages/text`
+- [ ] Monorepo with `packages/schema`, `packages/templates`, `packages/text` — kept as `shared/text/` instead, alongside the existing `shared/templates/` and `shared/schema/`; revisit if the package ever needs to publish separately
 - [ ] Indian placement fields: Class X/XII, CGPA/percentage, skill groups, achievements, responsibilities, coding profiles
-- [ ] Skill dictionary (about 500 skills with aliases) and rule-based JD parser, running in the browser
-- [ ] Scoring engine, keyword gap, eligibility checks, suggested section order
-- [ ] Bullet checks and JD-aware tips
+- [x] Skill dictionary (SDE scope, ~130 skills with aliases — analyst/core branches deferred per the Sept 2026 scope decision) and rule-based JD parser, running in the browser
+- [x] Scoring engine, keyword gap, eligibility checks, suggested section order
+- [x] Bullet checks and JD-aware tips
 - [ ] Resume import from PDF (rule-based, with review screen)
-- [ ] Post-render PDF text checks; analysis test set with 30 JDs
+- [ ] Post-render PDF text checks; analysis test set with 30 JDs — 8 labelled JDs in `tests/analysis/` so far, recall asserted ≥90%; grow toward 30 as real JDs are collected
 
 **Exit test:** the same resume and JD give the same score every time; parser recall is at least 90% on required skills in the test set.
 

@@ -9,7 +9,12 @@
   "scripts": {
     "dev:frontend": "npm run dev --workspace frontend",
     "dev:backend": "npm run dev --workspace backend",
-    "build:frontend": "npm run build --workspace frontend"
+    "build:frontend": "npm run build --workspace frontend",
+    "test": "vitest run",
+    "test:analysis": "vitest run tests/analysis"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.7"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

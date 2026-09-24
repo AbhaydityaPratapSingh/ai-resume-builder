@@ -1,9 +1,11 @@
 # AI Resume Builder
 
 A resume builder with ATS-style JD matching, aimed at Indian campus placements.
-Students paste a job description, get a keyword gap and match score, and can ask
-for a JD-tailored rewrite of any bullet — with their own words always kept
-alongside the suggestion.
+Students paste a job description and get a match score, missing keywords,
+eligibility checks and live bullet-writing tips — all computed in the browser,
+with no account and no API key. An optional AI layer can add JD-tailored
+bullet rewrites on top, with their own words always kept alongside the
+suggestion.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
 
@@ -11,8 +13,13 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
 
 - Template gallery (two single-column, ATS-safe templates)
 - Split-screen builder with a true-A4 live preview and page-boundary markers
-- Per-bullet AI rewrite with accept / revert — the original is never overwritten
-- JD keyword gap and match score
+- Rule-based JD matching: match score, missing keywords, eligibility checks
+  (CGPA/percentage, branch, graduation year) and a suggested section order —
+  runs entirely in the browser, no API key needed
+- Live bullet-writing tips (weak opener, no measurable result, passive voice,
+  length) plus JD-aware tips built from your own tech stack
+- Optional per-bullet AI rewrite with accept / revert — the original is never
+  overwritten
 - Rules-based ATS validation before every export
 - PDF export via Puppeteer
 - JSON backup and restore; resume data persists in `localStorage`
@@ -113,6 +120,15 @@ backend/      Express API: export, ATS validation, LLM touchpoints
 `shared/templates/` is the single renderer feeding both the live preview and
 the PDF, so the two cannot drift apart.
 
+## The JD matching engine
+
+`shared/text/` holds the whole analysis engine: a skill dictionary (~130
+SDE-scope skills with aliases), a JD parser (required vs. preferred sections,
+eligibility extraction), the scoring engine, and bullet checks. It has no
+dependencies and runs on both sides, though today only the frontend calls it.
+Run its test suite with `npm test` (or `npm run test:analysis` for just the
+analysis tests); see `tests/analysis/` for the labelled JD fixtures.
+
 ## The optional AI layer
 
 Off by default and not required for anything. When `AI_ENABLED=false`, the
@@ -129,6 +145,8 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 
 ## Status
 
-Phases 1, 2 and 2.1 are done. Next is Phase 2.5: a rule-based analysis engine
-(skill dictionary, JD parser, scoring, bullet tips) so JD matching works with no
-API key at all. See the roadmap in the architecture doc.
+Phases 1, 2 and 2.1 are done. Phase 2.5's core analysis engine (skill
+dictionary, JD parser, scoring, bullet tips) is in and wired into the builder.
+Still open from Phase 2.5: the Indian placement fields on the education form,
+resume import from PDF, and growing the dictionary/test set past the SDE-only
+starting scope. See the roadmap in the architecture doc.
