@@ -252,4 +252,28 @@ for study groups significantly.
     expect(draft.projects[0].bullets).toHaveLength(2);
     expect(draft.projects[1].bullets).toHaveLength(2);
   });
+
+  it("keeps a 'Relevant Coursework:' line as part of the institution above it, not a new education entry", () => {
+    // The line right before this one (a CGPA line) ends in a period, so by
+    // isContinuationLine alone it looks like a completed sentence — without
+    // recognizing the labeled-field shape too, the real field after it read
+    // as a brand-new institution.
+    const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+EDUCATION
+SRM Institute of Science and TechnologyKattankulathur, TN
+CGPA 8.35/10.
+Relevant Coursework:Data Structures & Algorithms, Object-Oriented Programming, Database Management
+Systems, Machine Learning.
+    `);
+    expect(draft.education).toHaveLength(1);
+    expect(draft.education[0].score).toEqual({ type: "cgpa", value: 8.35, outOf: 10 });
+    // The wrapped continuation ("Systems, Machine Learning.") is the same
+    // phrase as "Database Management" split by the PDF's line break, so it
+    // joins with a space, not the ", " used between genuinely separate
+    // fields — "Database Management Systems" is one course name.
+    expect(draft.education[0].degree).toContain("Database Management Systems, Machine Learning.");
+  });
 });

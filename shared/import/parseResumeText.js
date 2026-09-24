@@ -171,14 +171,22 @@ function extractScore(text) {
 
 const DEGREE_LINE_RE = /\b(b\.?\s?tech|b\.?\s?e|m\.?\s?tech|m\.?\s?e|bachelor|master|diploma|class\s*x(?:ii)?|bsc|bca|msc|mca|phd)\b/i;
 
+// "Relevant Coursework: X, Y, Z" is a labeled sub-field of the institution
+// above it, not a new one — but isContinuationLine alone won't catch it: the
+// line right before it (a CGPA line, "CGPA 8.35/10.") is a complete
+// sentence by that heuristic's own definition, so without this, a properly
+// terminated score line was enough to make the next real field misread as a
+// brand-new institution.
+const LABELED_FIELD_RE = /^(relevant\s+)?course\s*work\s*:/i;
+
 // Education entries rarely use a bullet glyph for the degree/score line
 // under an institution — "VIT Pune" / "CGPA: 8.6/10" is a very common
 // two-line shape with nothing marking the second line as a continuation.
 // So here, unlike other sections, a line continues the current entry when
-// it looks like a score or a degree name, OR when it looks like a wrapped
-// continuation of the line above it (isContinuationLine, same rationale as
-// splitEntries above); anything else starts a new entry (almost always the
-// next institution).
+// it looks like a score, a degree name or a labeled field, OR when it looks
+// like a wrapped continuation of the line above it (isContinuationLine,
+// same rationale as splitEntries above); anything else starts a new entry
+// (almost always the next institution).
 function splitEducationEntries(lines) {
   const entries = [];
   let current = null;
@@ -186,11 +194,26 @@ function splitEducationEntries(lines) {
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
-    const looksLikeScoreOrDegree = CGPA_RE.test(line) || PERCENT_RE.test(line) || DEGREE_LINE_RE.test(line);
-    const continues = current && (looksLikeScoreOrDegree || isContinuationLine(lastText, line));
-    if (continues) {
+    const looksLikeScoreOrDegree =
+      CGPA_RE.test(line) || PERCENT_RE.test(line) || DEGREE_LINE_RE.test(line) || LABELED_FIELD_RE.test(line);
+    // A genuinely new field (score/degree/labeled) is its own extra entry; a
+    // plain wrap of the text just above it is the SAME field split by the
+    // PDF's line break, so it merges into that entry's own text instead —
+    // otherwise "...Database Management" + "Systems..." (one course name,
+    // split mid-phrase) would rejoin with ", " and read as two courses.
+    const isWrap = current && !looksLikeScoreOrDegree && isContinuationLine(lastText, line);
+    if (looksLikeScoreOrDegree && current) {
       current.extra.push(line);
       lastText = line;
+    } else if (isWrap) {
+      if (current.extra.length) {
+        const i = current.extra.length - 1;
+        current.extra[i] = mergeContinuation(current.extra[i], line);
+        lastText = current.extra[i];
+      } else {
+        current.header = mergeContinuation(current.header, line);
+        lastText = current.header;
+      }
     } else {
       current = { header: line, extra: [] };
       entries.push(current);
