@@ -10,7 +10,7 @@ export function hashResume(resumeData) {
 }
 
 export const useAppStore = create((set) => ({
-  view: "gallery",
+  view: "landing",
   aiEnabled: false,
   backendUp: false,
   keywordGap: null,

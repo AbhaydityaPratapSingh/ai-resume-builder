@@ -1,0 +1,208 @@
+/* Landing page 3D effects. Tilt.jsx writes --rx/--ry/--gx/--gy on pointer move. */
+
+/* ---- Tilt cards ---- */
+.tilt {
+  position: relative;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition:
+    transform 200ms ease-out,
+    box-shadow 200ms ease-out,
+    border-color 200ms ease-out;
+}
+.tilt-pop {
+  transform: translateZ(28px);
+}
+.tilt-glare {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 50%),
+    rgb(99 102 241 / 0.1),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 200ms;
+}
+.tilt:hover .tilt-glare {
+  opacity: 1;
+}
+
+/* ---- Hero: page stack, float, corner peel ---- */
+.hero3d {
+  perspective: 1200px;
+}
+.hero3d-float {
+  transform-style: preserve-3d;
+  animation: hero3d-float 6s ease-in-out infinite;
+}
+.hero3d-scene {
+  transform-style: preserve-3d;
+  transform: rotateX(calc(10deg + var(--rx, 0deg))) rotateY(calc(-18deg + var(--ry, 0deg)));
+  transition: transform 300ms ease-out;
+}
+.hero3d-shadow {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -8px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgb(15 23 42 / 0.18);
+  filter: blur(18px);
+  animation: hero3d-shadow 6s ease-in-out infinite;
+}
+@keyframes hero3d-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes hero3d-shadow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.88); opacity: 0.7; }
+}
+
+/* The front page folds its top-right corner back along a 45° line to reveal
+   the JD sheet behind it. The page and the flap share one timeline. */
+.hero3d-front {
+  filter: drop-shadow(0 20px 30px rgb(15 23 42 / 0.12));
+}
+.hero3d-peel-page {
+  clip-path: polygon(0 0, 100% 0, 100% 0, 100% 100%, 0 100%);
+  animation: hero3d-peel-page 10s ease-in-out infinite;
+}
+.hero3d-peel-flap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  /* The 50% stop sits on the fold line; shade from the crease out to the tip. */
+  background: linear-gradient(to bottom left, #64748b 0%, #94a3b8 50%, #e2e8f0 62%, #f8fafc 100%);
+  animation: hero3d-peel-flap 10s ease-in-out infinite;
+}
+@keyframes hero3d-peel-page {
+  0%, 40%, 95%, 100% {
+    clip-path: polygon(0 0, 100% 0, 100% 0, 100% 100%, 0 100%);
+  }
+  55%, 80% {
+    clip-path: polygon(0 0, calc(100% - 170px) 0, 100% 170px, 100% 100%, 0 100%);
+  }
+}
+@keyframes hero3d-peel-flap {
+  0%, 40%, 95%, 100% { width: 0; height: 0; }
+  55%, 80% { width: 170px; height: 170px; }
+}
+
+/* ---- How it works: page that builds itself ---- */
+.build3d {
+  perspective: 1100px;
+}
+.build3d-scene {
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(8deg) rotateY(-14deg);
+}
+.build3d-part {
+  transition:
+    transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 500ms ease-out,
+    background-color 500ms ease-out;
+}
+
+/* ---- Template flip cards ---- */
+.flip-card {
+  perspective: 1400px;
+}
+.flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.flip-card[data-flipped="true"] .flip-inner {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  backface-visibility: hidden;
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+/* ---- Match score dial ---- */
+.dial3d {
+  perspective: 1000px;
+}
+.dial3d-scene {
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(18deg + var(--rx, 0deg))) rotateY(calc(-16deg + var(--ry, 0deg)));
+  transition: transform 300ms ease-out;
+}
+.dial3d-progress {
+  transition: stroke-dashoffset 1400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dial3d-chip {
+  transition:
+    transform 600ms cubic-bezier(0.3, 1.4, 0.5, 1),
+    opacity 400ms ease-out;
+}
+.dial3d-bar {
+  transition: width 1200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ---- Closing CTA: keyword cloud ---- */
+.kw-cloud {
+  perspective: 1200px;
+}
+.kw-cloud-scene {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 400ms ease-out;
+}
+.kw-chip {
+  position: absolute;
+  transform: translate3d(0, 0, var(--z));
+  animation: kw-drift var(--dur) ease-in-out var(--delay) infinite;
+}
+@keyframes kw-drift {
+  0%, 100% { transform: translate3d(0, 0, var(--z)); }
+  50% { transform: translate3d(var(--dx), var(--dy), calc(var(--z) + 40px)); }
+}
+
+/* ---- Three.js hero backdrop ---- */
+.hero-backdrop {
+  opacity: 0;
+  transition: opacity 1200ms ease-out;
+  mask-image: linear-gradient(to right, rgb(0 0 0 / 0.3), #000 60%);
+}
+.hero-backdrop[data-ready="true"] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt,
+  .hero3d-scene,
+  .dial3d-scene,
+  .kw-cloud-scene,
+  .flip-inner,
+  .build3d-part,
+  .dial3d-progress,
+  .dial3d-chip,
+  .dial3d-bar {
+    transition: none;
+  }
+  .tilt {
+    transform: none;
+  }
+  .hero3d-float,
+  .hero3d-shadow,
+  .hero3d-peel-page,
+  .hero3d-peel-flap,
+  .kw-chip {
+    animation: none;
+  }
+}

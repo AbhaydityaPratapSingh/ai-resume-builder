@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TEMPLATES } from "@resume-maker/shared";
 
+import Landing from "./components/Landing/index.jsx";
 import TemplateGallery from "./components/TemplateGallery/index.jsx";
 import FormPanel from "./components/Builder/FormPanel/index.jsx";
 import PreviewPanel from "./components/Builder/PreviewPanel/index.jsx";
@@ -147,6 +148,7 @@ export default function App() {
       .catch(() => setHealth({ backendUp: false, aiEnabled: false }));
   }, [setHealth]);
 
+  if (view === "landing") return <Landing />;
   if (view === "gallery") return <TemplateGallery />;
 
   return (

@@ -1,52 +1,7 @@
-import { TEMPLATES, renderResumeHTML, makeBullet } from "@resume-maker/shared";
+import { TEMPLATES, renderResumeHTML } from "@resume-maker/shared";
 import { useResumeStore } from "../../state/resumeStore.js";
 import { useAppStore } from "../../state/appStore.js";
-
-const SAMPLE = {
-  schemaVersion: 2,
-  personal: {
-    name: "Aditi Sharma",
-    email: "aditi@example.com",
-    phone: "+91 98765 43210",
-    location: "Pune",
-    links: [{ type: "github", url: "github.com/aditi" }],
-  },
-  summary: "Final-year computer engineering student focused on backend development.",
-  experience: [
-    {
-      id: "1",
-      role: "SDE Intern",
-      company: "Acme Corp",
-      startDate: "May 2025",
-      endDate: "Jul 2025",
-      bullets: [makeBullet("Built internal REST APIs used by the reporting dashboard.")],
-    },
-  ],
-  projects: [
-    {
-      id: "1",
-      title: "Placement Tracker",
-      techStack: ["React", "Node.js"],
-      bullets: [makeBullet("Tracked applications across 40 companies for 300 students.")],
-    },
-  ],
-  education: [
-    {
-      id: "1",
-      institution: "VIT Pune",
-      degree: "B.Tech CSE",
-      startDate: "2022",
-      endDate: "2026",
-      score: "CGPA 8.6/10",
-    },
-  ],
-  skills: [
-    { id: "s1", group: "Languages", items: ["Java", "Python", "SQL"] },
-    { id: "s2", group: "Frameworks", items: ["React", "Express"] },
-  ],
-  certifications: [],
-  layout: { templateId: "classic", sectionOrder: undefined, hidden: [] },
-};
+import { SAMPLE_RESUME } from "../../data/sampleResume.js";
 
 export default function TemplateGallery() {
   const selected = useResumeStore((s) => s.resumeData.layout.templateId);
@@ -60,6 +15,12 @@ export default function TemplateGallery() {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
+      <button
+        onClick={() => setView("landing")}
+        className="mb-6 text-sm text-slate-500 hover:text-slate-900"
+      >
+        &larr; Back
+      </button>
       <h1 className="text-2xl font-semibold text-slate-900">Pick a template</h1>
       <p className="mt-1 text-sm text-slate-500">
         Both are single-column and ATS-safe. You can switch later without losing content.
@@ -79,7 +40,7 @@ export default function TemplateGallery() {
             <div className="relative h-64 overflow-hidden bg-white">
               <iframe
                 title={template.name}
-                srcDoc={renderResumeHTML(SAMPLE, template.id)}
+                srcDoc={renderResumeHTML(SAMPLE_RESUME, template.id)}
                 sandbox=""
                 scrolling="no"
                 className="absolute top-0 left-0 origin-top-left"
