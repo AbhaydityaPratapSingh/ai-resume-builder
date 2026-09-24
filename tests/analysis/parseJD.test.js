@@ -6,12 +6,25 @@ import { parseJD } from "../../shared/text/parseJD.js";
 // parser must recover as required vs. preferred. Grows whenever a real JD
 // is found that the parser gets wrong (see ARCHITECTURE.md section 13.1).
 //
-// The 22 JDs below (from "TCS-style Ninja hiring" on) are written in the
-// style of real Indian campus-placement postings — service-company,
-// product-company, fintech, and startup — rather than scraped verbatim,
-// since LinkedIn/Naukri postings aren't reachable from this repo's tooling.
-// Each one was independently read and hand-labelled before checking it
-// against the parser's actual output, not the other way around.
+// The 22 JDs from "TCS-style Ninja hiring" through "Security-adjacent
+// backend role" are written in the style of real Indian campus-placement
+// postings — service-company, product-company, fintech, and startup —
+// rather than scraped verbatim, since LinkedIn/Naukri postings aren't
+// reachable from this repo's tooling. Each one was independently read and
+// hand-labelled before checking it against the parser's actual output, not
+// the other way around.
+//
+// The 9 JDs from "IBM Associate System Engineer" on are real postings —
+// pulled by the user from their campus placement portal (Haveloc), across
+// two batches, plus one from a .docx. Reading and labelling the first batch
+// caught three real bugs, since fixed (see shared/text/parseJD.js):
+// minPercentage had no context requirement at all and grabbed an unrelated
+// "maximum of 30% occupancy of the role" sentence ahead of the real
+// "minimum 73-75% aggregate" cutoff later in the same JD; gradYear only
+// matched trigger-word-then-year order ("graduating in 2026") and missed
+// two real postings that write the year first ("2027 graduating Batch",
+// "2027 Passout"); and the bare "IT" branch check matched the pronoun "it"
+// in ordinary prose, not just the abbreviation.
 const JDS = [
   {
     name: "SDE intern, explicit Requirements/Good to have",
@@ -510,6 +523,340 @@ Good to have:
     preferred: ["docker", "websockets"],
     eligibility: {},
   },
+  {
+    name: "REAL: IBM Associate System Engineer",
+    text: `
+Job Title - Associate System Engineer
+
+Your Role and Responsibilities
+As a Software Developer you'll participate in many aspects of the software development lifecycle, such as design, code implementation, testing, and support.
+Your primary responsibilities include:
+- Analytical Problem-Solving and Solution Enhancement
+- Comprehensive Engagement Across Process Phases
+- Strategic Stakeholder Engagement and Innovative Coding Solutions
+
+Required Professional and Technical Expertise
+- Programming (preferably in Java, C++, Python, Node.js).
+- Software Development Life Cycle Concepts
+
+Eligibility Criteria
+- 2027 graduating Batch only
+- Degree: BE / B.Tech / M.Tech / ME / MCA
+- Branches: Computer Science and Allied Branches (All CS branches like CSE, AIML, DS, Cloud Computing, Big Data Analytics, CSBS, IOT, Robotics, AI, Cybersecurity, Blockchain to name a few) and Information Technology
+- Minimum Academic Score: CGPA 6.0 / 60% and above
+- No Active Backlogs
+- This is an entry level On-Campus hiring position, and the candidates must be in their final year of education and must obtain their degree before the start of employment with IBM
+- Fluent Communication skills (written and spoken).
+
+Preferred Professional and Technical Expertise
+- Engineering Background, Problem Solving.
+- Good interpersonal skills.
+- Should be flexible to work from anywhere in India.
+    `,
+    // "javascript" and "c" are the Node.js/C++ substring quirks already
+    // documented above, not something specific to this posting.
+    required: ["java", "cpp", "python", "nodejs"],
+    preferred: [],
+    eligibility: { minCgpa: 6, minPercentage: 60, gradYear: 2027, branches: ["cse"] },
+  },
+  {
+    name: "REAL: fintech Data Science Intern — everything lands in required, no heading ever switches to preferred",
+    text: `
+Data Science Intern
+Data Science & Analytics Function
+Location: Mumbai
+
+Role Purpose
+The Data Science Intern will work on real-world analytics and AI use cases across Growth Analytics, Investor Intelligence, and Investment Intelligence.
+
+Key Responsibilities
+- Support development of analytical models, dashboards, reports, and AI-enabled solutions across growth, investor, and investment analytics use cases.
+- Perform data extraction, cleansing, profiling, validation, exploratory data analysis, and documentation using structured and unstructured datasets.
+- Assist in building segmentation, propensity, recommendation, campaign analytics, portfolio diagnostics, and business intelligence frameworks.
+- Work with data from digital platforms, customer systems, enterprise data warehouses, campaign systems, market data, and internal business sources.
+- Create analytical reports, visualizations, PowerPoint presentations, and concise business summaries to communicate insights and recommendations.
+- Participate in requirement discussions, project reviews, working sessions, and problem-solving discussions with analytics, business, technology, and vendor teams.
+- Take ownership of assigned tasks, coordinate proactively, track progress, and deliver within agreed timelines and quality expectations.
+
+Qualification & Eligibility
+- Graduates from Computer Science, IT, Engineering, Data Science, Statistics, Mathematics, Economics, AI, Business Analytics, Finance, or related quantitative disciplines.
+- Strong academic record with demonstrated analytical aptitude, problem-solving ability, and interest in financial services or asset management.
+- Strong interpersonal skills, communication ability, ownership mindset, curiosity, and willingness to learn new business and technology concepts.
+
+Technical Skills
+- Strong SQL and Python fundamentals are expected.
+- Good understanding of statistics, probability, machine learning concepts, data structures, and analytical problem solving.
+- Hands-on familiarity with Pandas, NumPy, Scikit-learn, notebooks, data visualization, and dashboarding concepts is preferred.
+- Exposure to Power BI / Tableau, GenAI / LLMs, prompt engineering, cloud platforms, Git, APIs, or financial market concepts will be an advantage.
+
+Behavioral Competencies
+- Ability to structure ambiguous problems, ask the right questions, and convert data into meaningful business insights.
+- Strong PowerPoint and data storytelling skills with ability to simplify analysis for non-technical stakeholders.
+- Collaborative working style with ability to coordinate across teams, accept feedback, and improve quickly.
+- Attention to detail, execution discipline, high learning agility, and willingness to take ownership.
+    `,
+    // Pandas/NumPy/Scikit-learn/Power BI/Tableau/GenAI are all genuinely
+    // out of the SDE-scoped dictionary (Sept 2026 scope decision) — not
+    // asserted here, same as the earlier synthetic data-adjacent JD. The
+    // prose says several of these "is preferred" / "will be an advantage",
+    // but nothing here is ever under a "Nice to have"-style heading, so
+    // per this parser's heading-only classification (documented above,
+    // "Next.js is a plus" case) everything lands in required, including
+    // the softly-worded bits. A real, evidenced instance of that same
+    // known limitation, not a new one.
+    required: ["dsa", "python", "sql", "git"],
+    preferred: [],
+    eligibility: { branches: ["cse"] },
+  },
+  {
+    name: "REAL: NatWest Software Engineer — names zero specific technologies at all",
+    text: `
+Role Title- Software Engineer
+
+Purpose of Role
+- Apply widely agreed software engineering principles and methodologies to design, develop, test and maintain applications and services to achieve the stated business and technology goals within required budgets and timelines
+- The role also entails contribution to project-critical requirements, as a maximum of 30% occupancy of the role, in any other areas of the Software Development Lifecycle.
+
+Roles & Responsibilities
+- Liaises with engineers, architects, business analysts and other key stakeholders to understand the objectives and requirements
+- Delivers a lasting solution or code within cost and time estimates of the project
+- Develops high-volume, high-performance, high-availability applications using proven frameworks and technologies
+- Develops software that is amenable for greater automation of build, release testing and deployment process on all environments
+- Delivers software components to enable the delivery of bank platforms, applications and services
+- Writes unit and integration tests, within automated test environments to ensure code quality
+- Responsible for work quality, ensuring it meets the technical standards for all services output
+- Continuously invests in learning technology and software development best practices at Natwest
+- Participate in and complete all the mandatory technical/domain/behavioral/e-learnings organized by the India Technology Academy, from time-to-time.
+- Understand the business that the role is part of and invest to deep dive in the domain learning for the respective project.
+
+Required Skills & Attributes
+- Knowledge of the key technologies used in NatWest
+- Knowledge of the financial services industry
+- Analytical Skills
+- Eye for Detail
+- Willingness to learn and adapt
+
+Eligibility Criteria
+- Degree: BE/BTech (Final year) 2027 Passout
+- Branches eligible: Computer Science, Information Technology, Electronics & Instrumentation & Communication Engineering, Mathematics & Computing, Mathematics & instrumentation
+- CGPA: 7 & Above
+- Xth : minimum 70%
+- XIIth : minimum 70%
+- Grad : minimum 73-75% aggregate as per the recent mark sheet / semester/ semester
+    `,
+    // A real, big-employer JD that names no specific language, framework
+    // or tool anywhere — "knowledge of the key technologies used in
+    // NatWest" is as concrete as it gets. Correctly degrades to an empty
+    // required list rather than guessing. minPercentage is 70 (the first
+    // of three cutoffs in the text, Xth/XIIth both 70%) — the eligibility
+    // model has one threshold, not one per education level, so a JD with
+    // different Xth/XIIth/Grad cutoffs can't be fully represented; a real,
+    // undocumented-until-now modeling gap worth a future enhancement.
+    required: [],
+    preferred: [],
+    eligibility: { minCgpa: 7, minPercentage: 70, gradYear: 2027, branches: ["cse", "ece"] },
+  },
+  {
+    name: "REAL: Deloitte Assurance IT Data & Analytics — audit role, no eligibility section on the page at all",
+    text: `
+Assurance – IT Data & Analytics
+Location: Basis business discretion
+
+Your work profile
+- Assist in client mandates including external/internal audits, execute audit assignments in line with auditing standards, process reviews/advisory, and process improvement engagements.
+- Perform operational and process reviews to identify risks, improvements, and data-driven insights.
+- Analyze large datasets to identify anomalies, trends, and control gaps; perform complex calculations such as interest computations and financial reconciliations for financial services clients.
+- Support performing fieldwork including process walkthroughs, review and testing of documents, preparation of work papers, and required documentation.
+- Perform ITAC (IT Application Controls) testing for financial services applications (e.g., core banking, ERP systems) to validate automated controls and configurations.
+- Participate in client meetings to understand business/IT processes and controls.
+- Collaborate with teams to ensure timely completion of engagements.
+- Help prepare client deliverables including external/internal/SOC audit reports, operating procedures, process review reports, recommendations, and data analytics dashboards.
+- Maintain clear communication with clients.
+- Leverage AI tools for risk assessment, predictive analytics, and automation of repetitive audit tasks.
+- Stay updated on auditing, regulatory trends, and emerging technologies like AI and data analytics.
+- Participate in internal training and accreditation programs as needed.
+    `,
+    // An audit/assurance role, not SDE — correctly extracts no dictionary
+    // skills at all (it never names one). "IT" appears capitalized twice
+    // ("IT Data & Analytics", "business/IT processes") as an abbreviation
+    // for the department, not an eligibility restriction, and the
+    // case-sensitive bare-IT branch check (fixed above to stop matching
+    // the lowercase pronoun) still can't tell those apart — a real,
+    // narrower residual limitation, documented rather than chased further.
+    required: [],
+    preferred: [],
+    eligibility: { branches: ["cse"] },
+  },
+  {
+    name: "REAL: Edgro Associate Product Manager — non-SDE role, prose-heavy, the pronoun-'it' branch false positive this parser used to have",
+    text: `
+Associate Product Manager
+
+ABOUT EDGRO
+Edgro is an RBI-licensed NBFC transforming how education is financed in India.
+
+THE ROLE
+Our lending runs on a mix of vendor platforms and systems we build ourselves.
+
+WHAT YOU'LL OWN
+- How our systems fit together - you understand how APIs work and what a sound integration looks like between systems like a CRM, LMS, LOS, etc.
+- Vendor management across the product stack - requirements, roadmap, escalations and releases with the vendors who run parts of it.
+- Stakeholder interfaces - you're the product point of contact for one or more business teams.
+- Specs people can build from - clear flows, edge cases, states, acceptance criteria.
+- An analytical mindset - you pull the data yourself, find where applications drop off, back recommendations with evidence rather than opinion.
+- Testing what ships - walk the flows before release, in the same detail as the person who built them.
+
+WHAT WE'RE LOOKING FOR
+- High agency and ownership
+- Discipline
+- Structured thinking
+- Comfort with data - you know SQL, and you get comfortable in an analytics tool quickly.
+- You communicate well
+- Hands-on with AI - you already use it daily and know where it's unreliable and how to check it.
+- A pull toward the domain
+    `,
+    // A product-management role — "you know SQL" is the one clear,
+    // unambiguous dictionary skill. Before the fix documented above, this
+    // JD's three uses of "it" as a plain pronoun ("use it daily... check
+    // it") made eligibility.branches incorrectly report ["cse"] on a JD
+    // that states no branch restriction at all.
+    required: ["sql"],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    name: "REAL: Bain Capability Network Intern Analyst — consulting role, zero dictionary skills named anywhere",
+    text: `
+JOB DESCRIPTION – INTERN ANALYST
+Reports to: Associate/Project Leader
+Location: Gurgaon/Bangalore (basis business requirements)
+
+As an analyst you will be an active member of the team, learning how to make businesses more valuable and helping our clients achieve sustainable competitive advantage. You will be responsible for generating industry & company insights to support global Bain case teams, client development teams and industry / capability practices.
+
+Job responsibilities
+- Comprehend client needs and challenges for adapting to case expectations. Show ability to resolve discrete issues and/or drive consensus
+- Identify and apply the relevant analytical tools for own work stream and ensure zero-defect analysis.
+- Understand the client business/industry to generate and screen realistic solutions based on a blend of research and analysis. Communicate data, knowledge and insight to the entire team.
+- Effectively structure communication of insights from own work stream and ensure a logical flow of relevant information in presentations.
+- Consistently seek and provide actionable feedback in all interactions.
+    `,
+    // A management-consulting analyst role — same pattern as the NatWest
+    // JD above, a real, large employer whose posting names no specific
+    // language, framework or tool at all.
+    required: [],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    name: "REAL: ResNet Solutions AI ML Developer — mostly out-of-dictionary ML stack, cloud platforms still catch",
+    text: `
+Job Title: AI ML Developer
+
+Job Brief:
+We are seeking a highly motivated AI ML Developers to join our dynamic team. You will be involved in the complete cycle of developing machine learning models, from data collection and preprocessing to training and deployment.
+
+Responsibilities:
+- Collect, preprocess, and analyze large datasets to extract meaningful insights.
+- Develop, train, and fine-tune machine learning models for predictive analytics.
+- Implement data pipelines and integrate models into production environments.
+- Stay updated with the latest research and advancements in machine learning.
+- Collaborate with the data engineering and software development teams to ensure seamless model integration.
+
+Skills Required:
+- Proficiency in Python and machine learning frameworks (TensorFlow, PyTorch, Scikit-learn).
+- Experience with data preprocessing, data analysis, and visualization tools (Pandas, NumPy, Matplotlib).
+- Knowledge of deep learning architectures (CNNs, RNNs, LSTMs).
+- Familiarity with cloud platforms (AWS, GCP, Azure) and deploying models in production.
+- Good problem-solving abilities and statistical knowledge.
+    `,
+    // TensorFlow/PyTorch/Scikit-learn/Pandas/NumPy/Matplotlib are all
+    // genuinely out of the SDE-scoped dictionary (Sept 2026 decision) —
+    // not asserted here. Python and the three cloud platforms still catch.
+    required: ["python", "aws", "gcp", "azure"],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    name: "REAL: ResNet Solutions SDE Level 1 — dense skills list, wide direct-hire posting (no campus eligibility section)",
+    text: `
+Job Title: SDE Level 1
+
+Job Brief:
+We are seeking highly motivated Software Developer Engineers (SDE) Level 1 to join our dynamic team. You will be involved in the complete software development lifecycle, from design and implementation to testing and deployment.
+
+Responsibilities:
+- Collaborate with cross-functional teams to gather and analyze requirements.
+- Design, develop, and maintain software applications and systems.
+- Write clean, efficient, and maintainable code following coding standards.
+- Perform unit testing and integration testing to ensure software quality.
+- Participate in code reviews to maintain code quality and consistency.
+- Debug and resolve software defects and performance issues.
+- Collaborate with DevOps and QA teams to ensure smooth deployment and testing.
+
+Skills Required:
+- Proficiency in programming languages such as Java, Python, C++, or JavaScript.
+- Experience with web development frameworks (e.g., React, Angular, Node.js) or backend frameworks (e.g., Spring Boot, Django, Flask).
+- Familiarity with database systems (SQL and NoSQL) such as MySQL, PostgreSQL, MongoDB.
+- Knowledge of software development methodologies (Agile, Scrum).
+- Understanding of version control systems (Git, GitHub, GitLab).
+- Basic knowledge of cloud platforms (AWS, Azure, GCP) is a plus.
+- Strong problem-solving skills and attention to detail.
+- Ability to write clear and concise technical documentation.
+    `,
+    // "GitLab" alone (no "CI" suffix) doesn't match gitlabci's alias
+    // ("gitlab ci") — a real, minor, understandable gap: GitLab-the-
+    // platform and GitLab CI are different concepts and only the latter
+    // is in the dictionary. "is a plus" for the cloud platforms is the
+    // same heading-only-classification limitation documented above — they
+    // land in required since nothing here is under a Nice-to-have heading.
+    required: [
+      "java", "python", "cpp", "javascript", "react", "angular", "nodejs",
+      "springboot", "django", "flask", "sql", "mysql", "postgresql", "mongodb",
+      "agile", "unittesting", "git", "github", "aws", "azure", "gcp",
+    ],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    name: "REAL: EA Slingshot Studios Software Engineer Intern — game-dev role, docx source, Bonus section genuinely preferred",
+    text: `
+Software Engineer Intern - Slingshot Studios (Paid Internship)
+Hyderabad
+
+Role Overview
+As EA's first label dedicated to purely digital games, EA Mobile creates games for mobile devices, social networks and online environments.
+
+Responsibilities
+- You will participate in building new game features.
+- You will work with designers and product managers to provide world-class experiences to our players.
+- You will improve code for performance, focusing on reducing load times and improving frame rates.
+- You will participate in code reviews and retrospectives and improve our code bases and processes.
+- You will write good documentation and follow coding standards.
+
+Qualifications
+We encourage you to apply if you can meet most of the requirements and are comfortable opening a dialogue to be considered.
+- Have a solid foundation of data structures and algorithms
+- Solid programming skills
+- Be able to channel curiosity into targeted learning.
+- Find creative ways to solve challenges
+- Be able to use modern Agentic AI coding harnesses
+
+Bonus:
+- Experience making and playing games
+- Demonstrated proficiency in C++/C#/Java or PHP
+- Demonstrated proficiency in 3D Mathematics used in games.
+- Demonstrated understanding of RESTful API
+    `,
+    // Pulled from a .docx (unzipped and stripped of XML by hand, since
+    // this repo's tooling only reads PDFs) — real evidence the parser
+    // works the same regardless of source format, as it should: it only
+    // ever sees plain text either way. "Agentic AI coding harnesses" has
+    // no dictionary match (a very new term, reasonably out of scope). "c"
+    // in preferred is the C++/C# substring quirk documented above.
+    required: ["dsa"],
+    preferred: ["cpp", "csharp", "java", "php", "restapi"],
+    eligibility: {},
+  },
 ];
 
 // Known limitation, discovered while hand-labelling the JDs above: the
@@ -526,6 +873,39 @@ describe("known limitation: bare 'c' false-matches inside C++/C#", () => {
     const parsed = parseJD("Requirements: strong C# experience.");
     expect(parsed.required).toContain("csharp");
     expect(parsed.required).toContain("c"); // ← the bug: should not be here
+  });
+});
+
+// Three fixes made while hand-labelling real JDs above (see
+// shared/text/parseJD.js) — locked in here so they can't silently regress.
+describe("eligibility extraction fixes found via real JDs", () => {
+  it("minPercentage requires eligibility context, not any bare N% in the document", () => {
+    const parsed = parseJD(
+      "The role also entails a maximum of 30% occupancy in other areas. Eligibility: minimum 73% aggregate required."
+    );
+    expect(parsed.eligibility.minPercentage).toBe(73);
+  });
+
+  it("minPercentage still matches when other words sit between 'minimum' and the figure", () => {
+    const parsed = parseJD("Minimum Academic Score: CGPA 6.0 / 60% and above");
+    expect(parsed.eligibility.minPercentage).toBe(60);
+  });
+
+  it("gradYear matches year-then-trigger order, not just trigger-then-year", () => {
+    expect(parseJD("Eligibility: 2027 graduating Batch only.").eligibility.gradYear).toBe(2027);
+    expect(parseJD("Degree: BE/BTech (Final year) 2027 Passout").eligibility.gradYear).toBe(2027);
+  });
+
+  it("bare 'IT' branch check is case-sensitive — the pronoun 'it' never counts", () => {
+    const parsed = parseJD(
+      "Hands-on with AI - you already use it daily and know where it's unreliable and how to check it."
+    );
+    expect(parsed.eligibility.branches).toBeUndefined();
+  });
+
+  it("bare 'IT' still counts as CSE/IT when written as the actual abbreviation", () => {
+    const parsed = parseJD("Branches eligible: Computer Science, IT, Electronics.");
+    expect(parsed.eligibility.branches).toContain("cse");
   });
 });
 

@@ -64,13 +64,22 @@ function splitSections(jdText) {
   };
 }
 
+// The bare "IT" abbreviation is checked separately, case-sensitively (see
+// below) — "it" lowercase is one of the most common words in English
+// prose and would otherwise false-positive on almost any JD that isn't a
+// dry bullet list, not just ones that actually restrict eligibility to
+// IT graduates. Found via a real posting whose only uses of "it" were the
+// pronoun ("you already use it daily... check it").
 const BRANCH_PATTERNS = [
-  { id: "cse", label: "CSE/IT", pattern: /\b(computer science|cse|information technology|\bit\b)\b/i },
+  { id: "cse", label: "CSE/IT", pattern: /\b(computer science|cse|information technology)\b/i },
   { id: "ece", label: "ECE", pattern: /\b(electronics|ece|e&tc|e&ce)\b/i },
   { id: "eee", label: "EEE/EE", pattern: /\b(electrical|eee|\bee\b)\b/i },
   { id: "mech", label: "Mechanical", pattern: /\bmechanical\b/i },
   { id: "civil", label: "Civil", pattern: /\bcivil\b/i },
 ];
+// Same rationale, case-sensitive: only counts as a CSE/IT signal when
+// written the way the abbreviation actually is, "IT" — never "it" or "It".
+const BARE_IT_RE = /\bIT\b/;
 
 function extractEligibility(jdText) {
   const eligibility = {};
@@ -79,13 +88,33 @@ function extractEligibility(jdText) {
     || jdText.match(/cgpa\s*(?:of|:)?\s*(\d(?:\.\d{1,2})?)/i);
   if (cgpaMatch) eligibility.minCgpa = parseFloat(cgpaMatch[1]);
 
-  const pctMatch = jdText.match(/(\d{1,3})\s*%\s*(?:or (?:above|higher|more))?\s*(?:aggregate|marks)?/i);
-  if (pctMatch) eligibility.minPercentage = parseInt(pctMatch[1], 10);
+  // Requires an actual eligibility-style context word, not just any bare
+  // "N%" anywhere in the document — found via a real JD whose
+  // "maximum of 30% occupancy of the role" (a responsibility split, not a
+  // score) was being read as a 30% academic cutoff, ahead of the real
+  // "minimum 73-75% aggregate" later in the same posting. The leading
+  // "minimum" alternative allows up to 30 chars before the number (real
+  // postings write "Minimum Academic Score: CGPA 6.0 / 60%", not always
+  // "minimum" directly against the figure), bounded to one sentence so it
+  // can't reach into unrelated text.
+  const pctMatch =
+    jdText.match(/minimum[^.\n]{0,30}?(\d{1,3}(?:\.\d{1,2})?)\s*%/i) ||
+    jdText.match(
+      /(\d{1,3}(?:\.\d{1,2})?)\s*%\s*(?:or (?:above|higher|more)|and above|or more|aggregate|marks|throughout|overall)/i
+    );
+  if (pctMatch) eligibility.minPercentage = parseFloat(pctMatch[1]);
 
-  const yearMatch = jdText.match(/(?:batch|graduat\w*|passing out)[^.\n]{0,20}?(20\d{2})/i);
+  // Tries trigger-word-then-year first ("graduating in 2026"), then falls
+  // back to year-then-trigger ("2027 graduating batch", "2027 Passout") —
+  // found via two independent real postings that both write the year
+  // first, which the original trigger-first-only pattern never matched.
+  const yearMatch =
+    jdText.match(/(?:batch|graduat\w*|passing out|passout)[^.\n]{0,20}?(20\d{2})/i) ||
+    jdText.match(/(20\d{2})[^.\n]{0,20}?(?:batch|graduat\w*|passing out|passout)/i);
   if (yearMatch) eligibility.gradYear = parseInt(yearMatch[1], 10);
 
   const branches = BRANCH_PATTERNS.filter((b) => b.pattern.test(jdText)).map((b) => b.id);
+  if (BARE_IT_RE.test(jdText) && !branches.includes("cse")) branches.push("cse");
   if (branches.length) eligibility.branches = branches;
 
   return eligibility;
