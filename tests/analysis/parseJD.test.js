@@ -62,6 +62,18 @@ Bonus:
     eligibility: {},
   },
   {
+    // Regression: an ambiguous skill must not match just because some other,
+    // unrelated skill was matched anywhere in the document — only when a
+    // real skill or context word sits near THIS occurrence. Almost every
+    // real JD mentions at least one real skill, so without this the "R" in
+    // "R&D" or the "c" would false-match on nearly every JD.
+    name: "Ambiguous R doesn't false-match a distant unrelated mention",
+    text: `We are looking for a Python developer. Our company invests heavily in R&D and innovation.`,
+    required: ["python"],
+    preferred: [],
+    eligibility: {},
+  },
+  {
     name: "Symbols in skill names (C++, C#, .NET)",
     text: `Requirements: C++ or C# experience; familiarity with .NET is a plus... wait, actually required too.`,
     required: ["cpp", "csharp", "dotnet"],
@@ -128,5 +140,15 @@ describe("parseJD recall", () => {
 
   it("empty JD yields empty result, no crash", () => {
     expect(parseJD("")).toEqual({ required: [], preferred: [], eligibility: {} });
+  });
+
+  it("no JD in the set false-matches an ambiguous skill it doesn't list", () => {
+    for (const jd of JDS) {
+      const parsed = parseJD(jd.text);
+      const unexpected = [...parsed.required, ...parsed.preferred].filter(
+        (id) => !jd.required.includes(id) && !jd.preferred.includes(id)
+      );
+      expect(unexpected, `${jd.name} matched unexpected skills`).toEqual([]);
+    }
   });
 });
