@@ -1,16 +1,26 @@
 import { escapeHtml, joinNonEmpty } from "./escapeHtml.js";
+import { safeUrl, displayUrl } from "./safeUrl.js";
+import { bulletText, SECTION_KEYS } from "../data/emptyResume.js";
 
 function renderBullets(bullets) {
-  const items = (bullets || []).filter((b) => b && b.trim());
+  const items = (bullets || []).map(bulletText).filter((t) => t && t.trim());
   if (!items.length) return "";
   return `<ul class="bullets">${items
-    .map((b) => `<li>${escapeHtml(b)}</li>`)
+    .map((t) => `<li>${escapeHtml(t)}</li>`)
     .join("")}</ul>`;
 }
 
 function renderDateRange(start, end) {
   const range = joinNonEmpty([start, end || "Present"], " – ");
   return range ? `<span class="dates">${range}</span>` : "";
+}
+
+function renderSummary(resumeData) {
+  const text = resumeData.summary;
+  if (!text || !text.trim()) return "";
+  return `<section class="section"><h2>Summary</h2><p class="summary">${escapeHtml(
+    text
+  )}</p></section>`;
 }
 
 function renderExperience(experience) {
@@ -85,12 +95,21 @@ function renderProjects(projects) {
 }
 
 function renderSkills(skills) {
-  const items = (skills || []).filter(Boolean);
-  if (!items.length) return "";
+  const groups = (skills || []).filter((g) => g.items?.filter(Boolean).length);
+  if (!groups.length) return "";
+  const single = groups.length === 1 && groups[0].group === "Skills";
   return `
     <section class="section">
       <h2>Skills</h2>
-      <div class="skills-line">${joinNonEmpty(items)}</div>
+      ${groups
+        .map((g) =>
+          single
+            ? `<div class="skills-line">${joinNonEmpty(g.items)}</div>`
+            : `<div class="skills-line"><span class="skills-group">${escapeHtml(
+                g.group
+              )}:</span> ${joinNonEmpty(g.items)}</div>`
+        )
+        .join("")}
     </section>`;
 }
 
@@ -116,29 +135,55 @@ function renderCertifications(certifications) {
     </section>`;
 }
 
+const SECTION_RENDERERS = {
+  summary: renderSummary,
+  experience: (d) => renderExperience(d.experience),
+  projects: (d) => renderProjects(d.projects),
+  education: (d) => renderEducation(d.education),
+  skills: (d) => renderSkills(d.skills),
+  certifications: (d) => renderCertifications(d.certifications),
+};
+
+function renderContactLine(personal) {
+  const parts = [];
+  if (personal.email) {
+    const href = safeUrl(`mailto:${personal.email}`);
+    parts.push(
+      href
+        ? `<a href="${escapeHtml(href)}">${escapeHtml(personal.email)}</a>`
+        : escapeHtml(personal.email)
+    );
+  }
+  if (personal.phone) parts.push(escapeHtml(personal.phone));
+  if (personal.location) parts.push(escapeHtml(personal.location));
+
+  for (const link of personal.links || []) {
+    const href = safeUrl(link.url);
+    if (!href) continue;
+    parts.push(
+      `<a href="${escapeHtml(href)}">${escapeHtml(displayUrl(link.url))}</a>`
+    );
+  }
+  return parts.join("  |  ");
+}
+
 export function renderResumeBodyHTML(resumeData) {
-  const p = resumeData.personal || {};
-  const contactLine = joinNonEmpty(
-    [p.email, p.phone, p.location, p.linkedin, p.github, p.portfolio],
-    "  |  "
-  );
+  const personal = resumeData.personal || {};
+  const layout = resumeData.layout || {};
+  const order = layout.sectionOrder?.length ? layout.sectionOrder : SECTION_KEYS;
+  const hidden = new Set(layout.hidden || []);
+  const contactLine = renderContactLine(personal);
+
+  const sections = order
+    .filter((key) => !hidden.has(key) && SECTION_RENDERERS[key])
+    .map((key) => SECTION_RENDERERS[key](resumeData))
+    .join("");
 
   return `
     <header class="resume-header">
-      <h1>${escapeHtml(p.name) || "Your Name"}</h1>
+      <h1>${escapeHtml(personal.name) || "Your Name"}</h1>
       ${contactLine ? `<div class="contact-line">${contactLine}</div>` : ""}
     </header>
-    ${
-      resumeData.summary && resumeData.summary.trim()
-        ? `<section class="section"><h2>Summary</h2><p class="summary">${escapeHtml(
-            resumeData.summary
-          )}</p></section>`
-        : ""
-    }
-    ${renderExperience(resumeData.experience)}
-    ${renderProjects(resumeData.projects)}
-    ${renderEducation(resumeData.education)}
-    ${renderSkills(resumeData.skills)}
-    ${renderCertifications(resumeData.certifications)}
+    ${sections}
   `;
 }

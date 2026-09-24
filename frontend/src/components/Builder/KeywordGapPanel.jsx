@@ -1,11 +1,12 @@
 import { useAppStore } from "../../state/appStore.js";
 import { useResumeStore } from "../../state/resumeStore.js";
+import { makeId } from "@resume-maker/shared";
 import { Button } from "../shared/ui.jsx";
 
 export default function KeywordGapPanel() {
   const keywordGap = useAppStore((s) => s.keywordGap);
   const skills = useResumeStore((s) => s.resumeData.skills);
-  const setSkills = useResumeStore((s) => s.setSkills);
+  const setSkillGroups = useResumeStore((s) => s.setSkillGroups);
 
   if (!keywordGap) return null;
 
@@ -18,8 +19,20 @@ export default function KeywordGapPanel() {
     );
   }
 
+  const allSkills = skills.flatMap((g) => g.items);
+
+  function addSkill(keyword) {
+    if (!skills.length) {
+      setSkillGroups([{ id: makeId(), group: "Skills", items: [keyword] }]);
+      return;
+    }
+    setSkillGroups(
+      skills.map((g, i) => (i === 0 ? { ...g, items: [...g.items, keyword] } : g))
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <h4 className="mb-2 text-xs font-semibold tracking-wide text-slate-700 uppercase">
         Missing keywords
       </h4>
@@ -39,11 +52,11 @@ export default function KeywordGapPanel() {
               </span>
               <p className="mt-0.5 text-xs text-slate-500">{k.why}</p>
             </div>
-            {!skills.includes(k.keyword) ? (
+            {!allSkills.includes(k.keyword) ? (
               <Button
                 variant="secondary"
                 className="shrink-0 px-2 py-0.5 text-[11px]"
-                onClick={() => setSkills([...skills, k.keyword])}
+                onClick={() => addSkill(k.keyword)}
                 title="Only add it if you actually have this skill"
               >
                 + Skill

@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { emptyResume, makeId } from "@resume-maker/shared";
+import {
+  emptyResume,
+  makeId,
+  makeBullet,
+  migrateResumeData,
+  SCHEMA_VERSION,
+} from "@resume-maker/shared";
 
 const STARTER = {
   experience: () => ({
@@ -9,7 +15,7 @@ const STARTER = {
     role: "",
     startDate: "",
     endDate: "",
-    bullets: [""],
+    bullets: [makeBullet()],
   }),
   education: () => ({
     id: makeId(),
@@ -25,10 +31,28 @@ const STARTER = {
     source: "manual",
     repoUrl: "",
     techStack: [],
-    bullets: [""],
+    bullets: [makeBullet()],
   }),
   certifications: () => ({ id: makeId(), name: "", issuer: "", date: "" }),
 };
+
+function mapItem(state, section, id, fn) {
+  return {
+    resumeData: {
+      ...state.resumeData,
+      [section]: state.resumeData[section].map((item) =>
+        item.id === id ? fn(item) : item
+      ),
+    },
+  };
+}
+
+function mapBullet(state, section, id, bulletId, fn) {
+  return mapItem(state, section, id, (item) => ({
+    ...item,
+    bullets: item.bullets.map((b) => (b.id === bulletId ? fn(b) : b)),
+  }));
+}
 
 export const useResumeStore = create(
   persist(
@@ -43,11 +67,38 @@ export const useResumeStore = create(
           },
         })),
 
+      setLinks: (links) =>
+        set((s) => ({
+          resumeData: {
+            ...s.resumeData,
+            personal: { ...s.resumeData.personal, links },
+          },
+        })),
+
       setSummary: (value) =>
         set((s) => ({ resumeData: { ...s.resumeData, summary: value } })),
 
-      setSkills: (skills) =>
+      setSkillGroups: (skills) =>
         set((s) => ({ resumeData: { ...s.resumeData, skills } })),
+
+      addSkillGroup: () =>
+        set((s) => ({
+          resumeData: {
+            ...s.resumeData,
+            skills: [...s.resumeData.skills, { id: makeId(), group: "", items: [] }],
+          },
+        })),
+
+      updateSkillGroup: (id, field, value) =>
+        set((s) => mapItem(s, "skills", id, (g) => ({ ...g, [field]: value }))),
+
+      removeSkillGroup: (id) =>
+        set((s) => ({
+          resumeData: {
+            ...s.resumeData,
+            skills: s.resumeData.skills.filter((g) => g.id !== id),
+          },
+        })),
 
       addItem: (section) =>
         set((s) => ({
@@ -58,14 +109,7 @@ export const useResumeStore = create(
         })),
 
       updateItem: (section, id, field, value) =>
-        set((s) => ({
-          resumeData: {
-            ...s.resumeData,
-            [section]: s.resumeData[section].map((item) =>
-              item.id === id ? { ...item, [field]: value } : item
-            ),
-          },
-        })),
+        set((s) => mapItem(s, section, id, (item) => ({ ...item, [field]: value }))),
 
       removeItem: (section, id) =>
         set((s) => ({
@@ -75,48 +119,63 @@ export const useResumeStore = create(
           },
         })),
 
-      setBullet: (section, id, index, value) =>
-        set((s) => ({
-          resumeData: {
-            ...s.resumeData,
-            [section]: s.resumeData[section].map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    bullets: item.bullets.map((b, i) => (i === index ? value : b)),
-                  }
-                : item
-            ),
-          },
-        })),
+      // A hand edit replaces the user's own words, so any suggestion made
+      // against the previous text no longer applies.
+      setBulletText: (section, id, bulletId, value) =>
+        set((s) =>
+          mapBullet(s, section, id, bulletId, (b) => ({
+            ...b,
+            original: value,
+            suggestion: null,
+            accepted: "original",
+          }))
+        ),
+
+      setBulletSuggestion: (section, id, bulletId, suggestion) =>
+        set((s) =>
+          mapBullet(s, section, id, bulletId, (b) => ({ ...b, suggestion }))
+        ),
+
+      acceptBullet: (section, id, bulletId) =>
+        set((s) =>
+          mapBullet(s, section, id, bulletId, (b) => ({ ...b, accepted: "suggestion" }))
+        ),
+
+      revertBullet: (section, id, bulletId) =>
+        set((s) =>
+          mapBullet(s, section, id, bulletId, (b) => ({ ...b, accepted: "original" }))
+        ),
+
+      dismissSuggestion: (section, id, bulletId) =>
+        set((s) =>
+          mapBullet(s, section, id, bulletId, (b) => ({
+            ...b,
+            suggestion: null,
+            accepted: "original",
+          }))
+        ),
 
       addBullet: (section, id) =>
-        set((s) => ({
-          resumeData: {
-            ...s.resumeData,
-            [section]: s.resumeData[section].map((item) =>
-              item.id === id ? { ...item, bullets: [...item.bullets, ""] } : item
-            ),
-          },
-        })),
+        set((s) =>
+          mapItem(s, section, id, (item) => ({
+            ...item,
+            bullets: [...item.bullets, makeBullet()],
+          }))
+        ),
 
-      removeBullet: (section, id, index) =>
-        set((s) => ({
-          resumeData: {
-            ...s.resumeData,
-            [section]: s.resumeData[section].map((item) =>
-              item.id === id
-                ? { ...item, bullets: item.bullets.filter((_, i) => i !== index) }
-                : item
-            ),
-          },
-        })),
+      removeBullet: (section, id, bulletId) =>
+        set((s) =>
+          mapItem(s, section, id, (item) => ({
+            ...item,
+            bullets: item.bullets.filter((b) => b.id !== bulletId),
+          }))
+        ),
 
       setTemplate: (templateId) =>
         set((s) => ({
           resumeData: {
             ...s.resumeData,
-            meta: { ...s.resumeData.meta, selectedTemplateId: templateId },
+            layout: { ...s.resumeData.layout, templateId },
           },
         })),
 
@@ -125,13 +184,18 @@ export const useResumeStore = create(
           resumeData: { ...s.resumeData, meta: { ...s.resumeData.meta, targetJD: jd } },
         })),
 
-      setMatchScore: (matchScore) =>
-        set((s) => ({
-          resumeData: { ...s.resumeData, meta: { ...s.resumeData.meta, matchScore } },
-        })),
+      replaceResume: (resumeData) =>
+        set({ resumeData: migrateResumeData(resumeData) }),
 
       reset: () => set({ resumeData: emptyResume() }),
     }),
-    { name: "resume-builder-data" }
+    {
+      name: "resume-builder-data",
+      version: SCHEMA_VERSION,
+      migrate: (persisted, fromVersion) => ({
+        ...persisted,
+        resumeData: migrateResumeData(persisted?.resumeData, fromVersion),
+      }),
+    }
   )
 );

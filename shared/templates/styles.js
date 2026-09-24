@@ -1,45 +1,55 @@
 const BASE = `
+  @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
   body {
-    margin: 0;
     font-family: var(--font-family);
     color: var(--text-color);
     background: #ffffff;
-    font-size: 11pt;
+    font-size: 10.5pt;
     line-height: 1.4;
   }
   .page {
-    max-width: 800px;
+    width: 210mm;
+    min-height: 297mm;
     margin: 0 auto;
-    padding: 40px 48px;
+    padding: 14mm 16mm;
+    background: #ffffff;
   }
   h1 {
     margin: 0 0 4px 0;
-    font-size: 24pt;
+    font-size: 22pt;
     color: var(--heading-color);
     letter-spacing: var(--heading-tracking, 0);
   }
+  a { color: inherit; text-decoration: none; }
   .contact-line {
-    font-size: 9.5pt;
+    font-size: 9pt;
     color: var(--muted-color);
     margin-bottom: 4px;
   }
   .resume-header {
     border-bottom: var(--header-border);
-    padding-bottom: 10px;
-    margin-bottom: 14px;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
   }
-  .section { margin-bottom: 14px; }
+  .section { margin-bottom: 12px; }
   .section h2 {
-    font-size: 11.5pt;
+    font-size: 11pt;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--heading-color);
     border-bottom: var(--section-border);
     padding-bottom: 3px;
-    margin: 0 0 8px 0;
+    margin: 0 0 7px 0;
+    break-after: avoid;
+    page-break-after: avoid;
   }
-  .entry { margin-bottom: 8px; }
+  .entry {
+    margin-bottom: 7px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
   .entry-head {
     display: flex;
     justify-content: space-between;
@@ -48,12 +58,13 @@ const BASE = `
     font-weight: 600;
   }
   .entry-title { font-size: 10.5pt; }
-  .dates { font-size: 9.5pt; color: var(--muted-color); white-space: nowrap; }
-  .entry-sub { font-size: 9.5pt; color: var(--muted-color); margin-top: 1px; }
+  .dates { font-size: 9pt; color: var(--muted-color); white-space: nowrap; }
+  .entry-sub { font-size: 9pt; color: var(--muted-color); margin-top: 1px; }
   .summary { font-size: 10.5pt; margin: 0; }
-  .bullets { margin: 4px 0 0 0; padding-left: 18px; }
+  .bullets { margin: 4px 0 0 0; padding-left: 16px; }
   .bullets li { font-size: 10.5pt; margin-bottom: 2px; }
-  .skills-line { font-size: 10.5pt; }
+  .skills-line { font-size: 10.5pt; margin-bottom: 2px; }
+  .skills-group { font-weight: 600; }
 `;
 
 export const TEMPLATE_STYLES = {

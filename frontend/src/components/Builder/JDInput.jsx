@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useResumeStore } from "../../state/resumeStore.js";
-import { useAppStore } from "../../state/appStore.js";
+import { useAppStore, hashResume } from "../../state/appStore.js";
 import { analyzeKeywordGap, scoreMatch } from "../../api/client.js";
 import { Button, TextArea } from "../shared/ui.jsx";
 import KeywordGapPanel from "./KeywordGapPanel.jsx";
@@ -12,22 +12,25 @@ export default function JDInput() {
   const jdText = resumeData.meta.targetJD;
 
   const aiEnabled = useAppStore((s) => s.aiEnabled);
-  const setKeywordGap = useAppStore((s) => s.setKeywordGap);
-  const setMatchScore = useAppStore((s) => s.setMatchScore);
+  const setAnalysis = useAppStore((s) => s.setAnalysis);
+  const analysisHash = useAppStore((s) => s.analysisHash);
+  const hasAnalysis = useAppStore((s) => Boolean(s.matchScore || s.keywordGap));
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  const currentHash = hashResume(resumeData);
+  const isStale = hasAnalysis && analysisHash !== currentHash;
 
   async function handleAnalyze() {
     setBusy(true);
     setError(null);
     try {
-      const [gap, score] = await Promise.all([
+      const [keywordGap, matchScore] = await Promise.all([
         analyzeKeywordGap(resumeData, jdText),
         scoreMatch(resumeData, jdText),
       ]);
-      setKeywordGap(gap);
-      setMatchScore(score);
+      setAnalysis({ keywordGap, matchScore, analysisHash: hashResume(resumeData) });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -47,7 +50,7 @@ export default function JDInput() {
           className="px-3 py-1.5 text-xs"
           title={aiEnabled ? undefined : "Backend has no ANTHROPIC_API_KEY"}
         >
-          {busy ? "Analysing..." : "Analyse"}
+          {busy ? "Analysing..." : isStale ? "Re-run Analyse" : "Analyse"}
         </Button>
       </div>
 
@@ -66,8 +69,16 @@ export default function JDInput() {
       ) : null}
       {error ? <p className="text-xs text-red-500">{error}</p> : null}
 
-      <MatchScorePanel />
-      <KeywordGapPanel />
+      {isStale ? (
+        <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
+          Outdated: the resume changed since this analysis. Re-run Analyse.
+        </p>
+      ) : null}
+
+      <div className={isStale ? "opacity-50" : ""}>
+        <MatchScorePanel />
+        <KeywordGapPanel />
+      </div>
     </div>
   );
 }

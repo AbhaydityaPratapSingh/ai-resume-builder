@@ -1,13 +1,15 @@
-import { TEMPLATES, renderResumeHTML } from "@resume-maker/shared";
+import { TEMPLATES, renderResumeHTML, makeBullet } from "@resume-maker/shared";
 import { useResumeStore } from "../../state/resumeStore.js";
 import { useAppStore } from "../../state/appStore.js";
 
 const SAMPLE = {
+  schemaVersion: 2,
   personal: {
     name: "Aditi Sharma",
     email: "aditi@example.com",
     phone: "+91 98765 43210",
     location: "Pune",
+    links: [{ type: "github", url: "github.com/aditi" }],
   },
   summary: "Final-year computer engineering student focused on backend development.",
   experience: [
@@ -17,7 +19,7 @@ const SAMPLE = {
       company: "Acme Corp",
       startDate: "May 2025",
       endDate: "Jul 2025",
-      bullets: ["Built internal REST APIs used by the reporting dashboard."],
+      bullets: [makeBullet("Built internal REST APIs used by the reporting dashboard.")],
     },
   ],
   projects: [
@@ -25,7 +27,7 @@ const SAMPLE = {
       id: "1",
       title: "Placement Tracker",
       techStack: ["React", "Node.js"],
-      bullets: ["Tracked applications across 40 companies for 300 students."],
+      bullets: [makeBullet("Tracked applications across 40 companies for 300 students.")],
     },
   ],
   education: [
@@ -38,13 +40,16 @@ const SAMPLE = {
       score: "CGPA 8.6/10",
     },
   ],
-  skills: ["Java", "Python", "SQL", "React"],
+  skills: [
+    { id: "s1", group: "Languages", items: ["Java", "Python", "SQL"] },
+    { id: "s2", group: "Frameworks", items: ["React", "Express"] },
+  ],
   certifications: [],
-  meta: {},
+  layout: { templateId: "classic", sectionOrder: undefined, hidden: [] },
 };
 
 export default function TemplateGallery() {
-  const selected = useResumeStore((s) => s.resumeData.meta.selectedTemplateId);
+  const selected = useResumeStore((s) => s.resumeData.layout.templateId);
   const setTemplate = useResumeStore((s) => s.setTemplate);
   const setView = useAppStore((s) => s.setView);
 

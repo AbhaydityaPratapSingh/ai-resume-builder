@@ -1,12 +1,18 @@
 import { Router } from "express";
-import { renderResumePDF } from "../services/pdfRenderer.js";
+import { renderResumePDF, QueueFullError } from "../services/pdfRenderer.js";
 import { validateForATS } from "../services/atsValidator.js";
 
 const router = Router();
 
+// A name in Devanagari or Tamil sanitizes to an empty string, so fall back
+// rather than emitting a nameless attachment.
 function safeFilename(name) {
-  const base = (name || "resume").replace(/[^a-zA-Z0-9-_ ]/g, "").trim() || "resume";
-  return `${base.replace(/\s+/g, "_")}.pdf`;
+  const base = (name || "")
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9-_ ]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+  return base ? `${base}.pdf` : "resume.pdf";
 }
 
 router.post("/validate", (req, res) => {
@@ -20,7 +26,10 @@ router.post("/pdf", async (req, res) => {
   if (!resumeData) return res.status(400).json({ error: "resumeData is required" });
 
   try {
-    const pdf = await renderResumePDF(resumeData, templateId);
+    const pdf = await renderResumePDF(
+      resumeData,
+      templateId || resumeData.layout?.templateId
+    );
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -28,6 +37,10 @@ router.post("/pdf", async (req, res) => {
     );
     res.send(Buffer.from(pdf));
   } catch (err) {
+    if (err instanceof QueueFullError) {
+      res.setHeader("Retry-After", "10");
+      return res.status(503).json({ error: "Export queue is busy. Try again shortly." });
+    }
     console.error("PDF render failed:", err);
     res.status(500).json({ error: "Could not render the PDF." });
   }

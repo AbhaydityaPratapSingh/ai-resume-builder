@@ -3,75 +3,93 @@ import { useResumeStore } from "../../../state/resumeStore.js";
 import { useAppStore } from "../../../state/appStore.js";
 import { tailorBullet } from "../../../api/client.js";
 import { Button, TextArea } from "../../shared/ui.jsx";
+import SuggestionCard from "../SuggestionCard.jsx";
 
 export default function BulletList({ section, item, context }) {
-  const setBullet = useResumeStore((s) => s.setBullet);
+  const setBulletText = useResumeStore((s) => s.setBulletText);
+  const setBulletSuggestion = useResumeStore((s) => s.setBulletSuggestion);
+  const acceptBullet = useResumeStore((s) => s.acceptBullet);
+  const revertBullet = useResumeStore((s) => s.revertBullet);
+  const dismissSuggestion = useResumeStore((s) => s.dismissSuggestion);
   const addBullet = useResumeStore((s) => s.addBullet);
   const removeBullet = useResumeStore((s) => s.removeBullet);
   const jdText = useResumeStore((s) => s.resumeData.meta.targetJD);
   const aiEnabled = useAppStore((s) => s.aiEnabled);
 
-  const [busyIndex, setBusyIndex] = useState(null);
-  const [notes, setNotes] = useState({});
+  const [busyId, setBusyId] = useState(null);
+  const [errors, setErrors] = useState({});
 
   const canTailor = aiEnabled && Boolean(jdText?.trim());
 
-  async function handleTailor(index) {
-    const original = item.bullets[index];
-    if (!original?.trim()) return;
-    setBusyIndex(index);
+  async function handleTailor(bullet) {
+    if (!bullet.original?.trim()) return;
+    setBusyId(bullet.id);
+    setErrors((e) => ({ ...e, [bullet.id]: null }));
     try {
-      const result = await tailorBullet(original, jdText, context);
-      setBullet(section, item.id, index, result.bullet);
-      setNotes((n) => ({ ...n, [index]: result.note }));
+      const result = await tailorBullet(bullet.original, jdText, context);
+      setBulletSuggestion(section, item.id, bullet.id, {
+        text: result.bullet,
+        note: result.note,
+        createdAt: new Date().toISOString(),
+      });
     } catch (err) {
-      setNotes((n) => ({ ...n, [index]: err.message }));
+      setErrors((e) => ({ ...e, [bullet.id]: err.message }));
     } finally {
-      setBusyIndex(null);
+      setBusyId(null);
     }
   }
 
   return (
     <div className="space-y-2">
       <span className="block text-xs font-medium text-slate-600">Bullets</span>
-      {item.bullets.map((bullet, index) => (
-        <div key={index} className="space-y-1">
+      {item.bullets.map((bullet) => (
+        <div key={bullet.id} className="space-y-1.5">
           <div className="flex items-start gap-2">
             <TextArea
               rows={2}
-              value={bullet}
+              value={bullet.original}
               placeholder="Built X using Y, which did Z"
-              onChange={(e) => setBullet(section, item.id, index, e.target.value)}
+              onChange={(e) =>
+                setBulletText(section, item.id, bullet.id, e.target.value)
+              }
             />
             <div className="flex shrink-0 flex-col gap-1">
               <Button
                 variant="secondary"
                 className="px-2 py-1 text-xs whitespace-nowrap"
-                disabled={!canTailor || busyIndex === index || !bullet.trim()}
+                disabled={!canTailor || busyId === bullet.id || !bullet.original.trim()}
                 title={
                   aiEnabled
                     ? jdText?.trim()
-                      ? "Rewrite this bullet against the JD"
+                      ? "Suggest a rewrite against the JD"
                       : "Paste a JD first"
                     : "Backend has no ANTHROPIC_API_KEY"
                 }
-                onClick={() => handleTailor(index)}
+                onClick={() => handleTailor(bullet)}
               >
-                {busyIndex === index ? "..." : "Tailor"}
+                {busyId === bullet.id ? "..." : "Tailor"}
               </Button>
               {item.bullets.length > 1 ? (
                 <Button
                   variant="danger"
                   className="px-2 py-1 text-xs"
-                  onClick={() => removeBullet(section, item.id, index)}
+                  onClick={() => removeBullet(section, item.id, bullet.id)}
                 >
                   Delete
                 </Button>
               ) : null}
             </div>
           </div>
-          {notes[index] ? (
-            <p className="text-xs text-slate-500 italic">{notes[index]}</p>
+
+          <SuggestionCard
+            bullet={bullet}
+            onAccept={() => acceptBullet(section, item.id, bullet.id)}
+            onRevert={() => revertBullet(section, item.id, bullet.id)}
+            onDismiss={() => dismissSuggestion(section, item.id, bullet.id)}
+          />
+
+          {errors[bullet.id] ? (
+            <p className="text-xs text-red-500">{errors[bullet.id]}</p>
           ) : null}
         </div>
       ))}

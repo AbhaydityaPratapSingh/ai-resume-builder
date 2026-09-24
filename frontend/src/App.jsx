@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TEMPLATES } from "@resume-maker/shared";
 
 import TemplateGallery from "./components/TemplateGallery/index.jsx";
@@ -9,6 +9,67 @@ import { Button } from "./components/shared/ui.jsx";
 import { useResumeStore } from "./state/resumeStore.js";
 import { useAppStore } from "./state/appStore.js";
 import { downloadPDF, getHealth, validateATS } from "./api/client.js";
+
+function BackupMenu() {
+  const resumeData = useResumeStore((s) => s.resumeData);
+  const replaceResume = useResumeStore((s) => s.replaceResume);
+  const fileRef = useRef(null);
+  const [error, setError] = useState(null);
+
+  function handleBackup() {
+    const blob = new Blob([JSON.stringify(resumeData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `resume-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleRestore(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!parsed || typeof parsed !== "object" || !parsed.personal) {
+        throw new Error("That file does not look like a resume backup.");
+      }
+      replaceResume(parsed);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" className="px-2 py-1 text-xs" onClick={handleBackup}>
+        Backup
+      </Button>
+      <Button
+        variant="ghost"
+        className="px-2 py-1 text-xs"
+        onClick={() => fileRef.current?.click()}
+      >
+        Restore
+      </Button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={handleRestore}
+      />
+      {error ? <span className="text-xs text-red-500">{error}</span> : null}
+    </div>
+  );
+}
 
 function Header() {
   const resumeData = useResumeStore((s) => s.resumeData);
@@ -26,7 +87,7 @@ function Header() {
     setError(null);
     try {
       setAtsReport(await validateATS(resumeData));
-      await downloadPDF(resumeData, resumeData.meta.selectedTemplateId);
+      await downloadPDF(resumeData, resumeData.layout.templateId);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -44,7 +105,7 @@ function Header() {
           Resume Builder
         </button>
         <select
-          value={resumeData.meta.selectedTemplateId}
+          value={resumeData.layout.templateId}
           onChange={(e) => setTemplate(e.target.value)}
           className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700"
         >
@@ -54,6 +115,7 @@ function Header() {
             </option>
           ))}
         </select>
+        <BackupMenu />
       </div>
 
       <div className="flex items-center gap-3">
