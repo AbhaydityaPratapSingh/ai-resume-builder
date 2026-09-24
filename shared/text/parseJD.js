@@ -115,7 +115,14 @@ function extractEligibility(jdText) {
 
   const branches = BRANCH_PATTERNS.filter((b) => b.pattern.test(jdText)).map((b) => b.id);
   if (BARE_IT_RE.test(jdText) && !branches.includes("cse")) branches.push("cse");
-  if (branches.length) eligibility.branches = branches;
+  // A JD can name specific disciplines only to illustrate that it doesn't
+  // care which one a candidate studied — found via a real posting that
+  // said "we don't shortlist based on branch... whether you studied
+  // Computer Science, Electronics, or something entirely different" and
+  // still matched cse/ece from those very names. An explicit
+  // branch-agnostic phrase anywhere overrides any branch names matched.
+  const branchAgnostic = /\b(any branch|any discipline|all branches|open to all branches|regardless of branch|branch[\s-]agnostic|don'?t shortlist based on branch)\b/i;
+  if (branches.length && !branchAgnostic.test(jdText)) eligibility.branches = branches;
 
   return eligibility;
 }

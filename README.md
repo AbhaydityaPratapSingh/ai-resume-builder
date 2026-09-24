@@ -158,8 +158,8 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 ## Status
 
 Phases 1, 2, 2.1 and 2.5 are done: the analysis engine (skill dictionary,
-JD parser, scoring, bullet tips) is tested against 39 hand-labelled JDs,
-9 of them real postings from an actual campus placement portal,
+JD parser, scoring, bullet tips) is tested against 44 hand-labelled JDs,
+14 of them real postings from an actual campus placement portal,
 Indian placement fields, rule-based PDF import with a review screen, and
 post-render PDF checks are all in and wired into the builder. Still open:
 the skill dictionary itself stays SDE-scoped (~130 skills) by deliberate

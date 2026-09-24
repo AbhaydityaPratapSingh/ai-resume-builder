@@ -14,17 +14,21 @@ import { parseJD } from "../../shared/text/parseJD.js";
 // hand-labelled before checking it against the parser's actual output, not
 // the other way around.
 //
-// The 9 JDs from "IBM Associate System Engineer" on are real postings —
+// The 14 JDs from "IBM Associate System Engineer" on are real postings —
 // pulled by the user from their campus placement portal (Haveloc), across
-// two batches, plus one from a .docx. Reading and labelling the first batch
-// caught three real bugs, since fixed (see shared/text/parseJD.js):
-// minPercentage had no context requirement at all and grabbed an unrelated
-// "maximum of 30% occupancy of the role" sentence ahead of the real
-// "minimum 73-75% aggregate" cutoff later in the same JD; gradYear only
-// matched trigger-word-then-year order ("graduating in 2026") and missed
-// two real postings that write the year first ("2027 graduating Batch",
-// "2027 Passout"); and the bare "IT" branch check matched the pronoun "it"
-// in ordinary prose, not just the abbreviation.
+// three batches, plus one from a .docx. Reading and labelling them caught
+// four real bugs, since fixed (see shared/text/parseJD.js): minPercentage
+// had no context requirement at all and grabbed an unrelated "maximum of
+// 30% occupancy of the role" sentence ahead of the real "minimum 73-75%
+// aggregate" cutoff later in the same JD; gradYear only matched
+// trigger-word-then-year order ("graduating in 2026") and missed two real
+// postings that write the year first ("2027 graduating Batch", "2027
+// Passout"); the bare "IT" branch check matched the pronoun "it" in
+// ordinary prose, not just the abbreviation; and a JD naming disciplines
+// only to illustrate it doesn't care which one a candidate studied ("we
+// don't shortlist based on branch... whether you studied Computer
+// Science... or something entirely different") still matched those names
+// as a branch restriction, the opposite of what the JD said.
 const JDS = [
   {
     name: "SDE intern, explicit Requirements/Good to have",
@@ -857,6 +861,165 @@ Bonus:
     preferred: ["cpp", "csharp", "java", "php", "restapi"],
     eligibility: {},
   },
+  {
+    name: "REAL: Codity.ai Graduate Trainee - GTM — sales role, zero dictionary skills",
+    text: `
+Role: Graduate Trainee - GTM
+- Hustle in SaaS sales via cold calling (US Market)
+- Directly interact with decision-makers in global companies
+- This role would translate into a full-time role after completion of the University course
+
+Who We Want
+- High-energy hustlers (not 9-5 types)
+- Fearless communicators with strong English skills (cold calling is your playground)
+- Travel lovers to fly to the US to meet clients and grow accounts
+- Learners who want 10x growth, fast
+- Ownership-driven operators who want leadership roles early
+    `,
+    // A sales-trainee role with "SDE"-adjacent branding elsewhere in the
+    // same company's postings, but this one names no dictionary skill.
+    required: [],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    name: "REAL: Codity.ai Graduate Trainee - SDE 1 — SDE-titled role that still names no specific technology",
+    text: `
+Role: Graduate Trainee - SDE 1
+- Build and ship real-world AI/SaaS products alongside a fast-moving engineering team
+- This role would translate into a full-time role after completion of the University course
+
+Who We Want
+- Builders who can turn ideas into production-ready code at startup speed
+- Engineers who thrive in chaos, move with urgency, and figure things out independently
+- Competitive learners who want 10x growth in skill, ownership, and impact
+- Operators who want to lead teams, own products, and grow ridiculously fast
+    `,
+    // From the same employer as the GTM posting above — an SDE-titled
+    // role whose JD text still never names a language, framework or tool.
+    // Confirms (doesn't newly discover) the same pattern seen in the
+    // NatWest and Bain Capability Network JDs above.
+    required: [],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    name: "REAL: HyperVerge DL/ML Research Intern — dense ML posting; explicitly branch-agnostic despite naming disciplines by name",
+    text: `
+Deep Learning / Machine Learning Research Intern (LLMs & Vision Language Models)
+
+Internship Duration
+2026 Graduates: 6-month full-time internship
+2027 Graduating Students: 10-12 month full-time internship (based on academic calendar and availability)
+
+What We're Looking For
+
+Must Have
+- Strong Python programming skills.
+- Excellent understanding of Deep Learning fundamentals.
+- Hands-on experience with PyTorch (preferred), TensorFlow, or JAX.
+- Good understanding of Transformer architectures and modern neural networks.
+- Experience applying deep learning to computer vision, multimodal, document, or image-related problems.
+- Comfortable training, debugging, and evaluating models, not just consuming AI APIs.
+- Available for a full-time internship.
+- 2026 graduate or a 2027 graduating student.
+
+Bonus Points
+Experience with one or more of the following:
+- Fine-tuning open-weight LLMs
+- PEFT / LoRA
+- RLHF or Preference Alignment
+- Vision Language Models
+- Hugging Face ecosystem
+- Distributed training
+- CUDA optimization
+
+We'd Love To See
+Show us what you've built. This could include research papers, open-source contributions, fine-tuned models with documented evaluation, GitHub repositories, technical blogs.
+
+Eligibility
+2026 Graduates available for a 6-month full-time internship.
+2027 Graduating Students available for a 10-12 month full-time internship.
+Open to students and recent graduates from any discipline.
+We don't shortlist based on branch, CGPA, backlogs, or college.
+Whether you studied Computer Science, Mathematics, Statistics, Electronics, Biotechnology, or something entirely different, what matters is your ability to build, reason, experiment, and solve challenging AI problems.
+    `,
+    // PyTorch/TensorFlow/JAX/LoRA/RLHF etc. are all genuinely out of the
+    // SDE-scoped dictionary — not asserted. "GitHub" matches inside
+    // "GitHub repositories" (preferred, since it's under the unrecognized
+    // "We'd Love To See" heading, which stays in whatever section "Bonus
+    // Points" left it in). This is the JD that led to the branch-agnostic
+    // fix documented above: it names Computer Science and Electronics by
+    // name purely to illustrate that it doesn't care which branch a
+    // candidate studied ("we don't shortlist based on branch... whether
+    // you studied Computer Science... or something entirely different"),
+    // and before that fix this parser reported branches: ["cse","ece"] on
+    // a JD that explicitly states it has no branch restriction at all.
+    required: ["python"],
+    preferred: ["github"],
+    eligibility: { gradYear: 2027 },
+  },
+  {
+    name: "REAL: Reltio Intern Program Manager — non-engineering role, cloud platforms and Jira land in required via 'is a plus' limitation",
+    text: `
+Job Title: Intern - Program Manager
+Department: Technical Operations
+
+Responsibilities:
+- Assist Technical Project/Program Managers in various aspects of project lifecycles within Reltio
+- Support the tracking of tasks, timelines, and dependencies across teams leveraging Project Management tools (Google Docs, Sheets, Jira, Confluence)
+
+Qualifications:
+- Currently pursuing a Bachelor's or Master's degree in Computer Science, Engineering, Information Systems, Business Administration, or a related technical field.
+- Strong interest in technical project management and the software development process.
+- Excellent organizational skills and attention to detail.
+- Familiarity with tools like Jira is a plus.
+- A proactive attitude and a desire to learn about project management in a fast-paced SaaS company.
+
+Learning Opportunities:
+- Gain practical experience in supporting technical projects within a leading cloud based MDM SaaS company. (AWS, Azure and GCP)
+- Develop skills in project tracking, communication, and collaboration using industry-standard tools like Jira and Confluence.
+- Introduction to FinOps and Security practices
+- Explore AI capabilities for project management.
+    `,
+    // Another real instance of the documented heading-only-classification
+    // limitation: "Familiarity with tools like Jira is a plus" is a
+    // bullet under "Qualifications" (a required heading), so it's
+    // required despite the wording, same as the ResNet/Next.js cases
+    // above. branches: ["cse"] is a correct match here (this JD genuinely
+    // names Computer Science as one of the accepted degrees, with no
+    // branch-agnostic language anywhere to override it).
+    required: ["jira", "aws", "azure", "gcp"],
+    preferred: [],
+    eligibility: { branches: ["cse"] },
+  },
+  {
+    name: "REAL: Program Intern (startup, unnamed employer) — SQL the only dictionary match in a BI-tools-adjacent role",
+    text: `
+Program Intern
+
+About the Role
+We are currently seeking a data-driven and detail-oriented Program Intern to join us. This role will involve critical thinking, problem-solving, and analytical thinking to drive operational improvements and support strategic initiatives.
+
+The charter for this role will include:
+- Work closely with the founder/senior leaders to turn ideas into validated experiments.
+- Dive into industry trends, discover competitor insights while also working on user research.
+- Present findings, recommendations, and progress updates to leadership.
+
+Ideal Persona would:
+- Prior experience in building a start-up or interning at a start-up.
+- Good communication and presentation skills, both written and verbal.
+- High on agency with first principle problem-solving approach
+- Familiarity with analytical tools like Excel (advanced), SQL or other business intelligence software is a plus.
+- Strong organizational skills and ability to manage multiple tasks simultaneously.
+    `,
+    // Excel/generic "business intelligence software" are out of the
+    // SDE-scoped dictionary by design — not asserted. SQL is the one
+    // clear match.
+    required: ["sql"],
+    preferred: [],
+    eligibility: {},
+  },
 ];
 
 // Known limitation, discovered while hand-labelling the JDs above: the
@@ -906,6 +1069,18 @@ describe("eligibility extraction fixes found via real JDs", () => {
   it("bare 'IT' still counts as CSE/IT when written as the actual abbreviation", () => {
     const parsed = parseJD("Branches eligible: Computer Science, IT, Electronics.");
     expect(parsed.eligibility.branches).toContain("cse");
+  });
+
+  it("a branch-agnostic phrase overrides discipline names used only to illustrate openness", () => {
+    const parsed = parseJD(
+      "We don't shortlist based on branch. Whether you studied Computer Science, Electronics, or something entirely different, what matters is your ability to solve problems."
+    );
+    expect(parsed.eligibility.branches).toBeUndefined();
+  });
+
+  it("branch names still count with no branch-agnostic phrase present", () => {
+    const parsed = parseJD("Eligible branches: Computer Science, Electronics.");
+    expect(parsed.eligibility.branches).toEqual(["cse", "ece"]);
   });
 });
 
