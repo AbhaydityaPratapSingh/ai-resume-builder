@@ -277,3 +277,117 @@ Systems, Machine Learning.
     expect(draft.education[0].degree).toContain("Database Management Systems, Machine Learning.");
   });
 });
+
+describe("parseResumeText — bullet glyph extracted on its own line", () => {
+  const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+PROJECTS
+Placement Tracker - React, Node.js
+•
+Tracked applications across 40 companies for 300 students.
+•
+Deployed on AWS with Docker.
+Study Buddy - Flutter
+•Built a peer-matching app.
+
+ACHIEVEMENTS
+•
+Winner, Smart India Hackathon 2025
+•
+Finalist, national coding contest 2024
+  `);
+
+  it("attaches the text after a glyph-only line as a bullet of the right project", () => {
+    expect(draft.projects.map((p) => p.title)).toEqual([
+      "Placement Tracker - React, Node.js",
+      "Study Buddy - Flutter",
+    ]);
+    expect(draft.projects[0].bullets.map(bulletText)).toEqual([
+      "Tracked applications across 40 companies for 300 students.",
+      "Deployed on AWS with Docker.",
+    ]);
+    expect(draft.projects[1].bullets.map(bulletText)).toEqual(["Built a peer-matching app."]);
+  });
+
+  it("never leaves a stray glyph in titles or achievements", () => {
+    expect(draft.achievements.map((a) => a.text)).toEqual([
+      "Winner, Smart India Hackathon 2025",
+      "Finalist, national coding contest 2024",
+    ]);
+    for (const p of draft.projects) expect(p.title).not.toContain("•");
+  });
+
+  it("doesn't treat a leading hyphen without a space as a bullet", () => {
+    const d = parseResumeText("Name\nx@example.com\n\nACHIEVEMENTS\n-5% churn after redesign");
+    expect(d.achievements[0].text).toBe("-5% churn after redesign");
+  });
+});
+
+// Shapes taken from a real pdf-parse extraction of a LaTeX resume: location
+// and dates glued onto the previous text with no space, degree sharing a
+// line with the CGPA, and a skills line wrapped after a trailing comma.
+describe("parseResumeText — real pdf-parse education/skills shapes", () => {
+  const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+Education
+VIT Institute of TechnologyVellore, TN
+B.Tech, Computer Science and Engineering (AI); CGPA: 8.35/10.0Expected May 2027
+•
+Relevant Coursework:Operating Systems, Computer Networks
+Technical Skills
+Languages:  C++, Python, SQL
+CS Fundamentals:  Data Structures & Algorithms, Operating Systems,
+Databases, Machine Learning
+  `);
+
+  it("keeps the degree that shares a line with the CGPA, and extracts score and date", () => {
+    const edu = draft.education;
+    expect(edu).toHaveLength(1);
+    expect(edu[0].institution).toBe("VIT Institute of Technology, Vellore, TN");
+    expect(edu[0].degree).toContain("B.Tech, Computer Science and Engineering (AI)");
+    expect(edu[0].degree).toContain("Relevant Coursework:Operating Systems");
+    expect(edu[0].degree).not.toMatch(/CGPA|8\.35|Expected/);
+    expect(edu[0].score).toEqual({ type: "cgpa", value: 8.35, outOf: 10 });
+    expect(edu[0].endDate).toBe("May 2027");
+  });
+
+  it("merges a skills line wrapped after a trailing comma into its group", () => {
+    expect(draft.skills.map((g) => g.group)).toEqual(["Languages", "CS Fundamentals"]);
+    expect(draft.skills[1].items).toEqual([
+      "Data Structures & Algorithms",
+      "Operating Systems",
+      "Databases",
+      "Machine Learning",
+    ]);
+  });
+});
+
+// SCORE_TEXT_RE must only strip a number that's actually a score (adjacent
+// to a cgpa/gpa/percentage keyword). A bare "N/10" or "N%" elsewhere in the
+// degree text is real content, not a score, and must not be silently deleted.
+describe("parseResumeText — doesn't strip a bare N% or N/10 that isn't a score", () => {
+  it("keeps a class rank shaped like a fraction", () => {
+    const d = parseResumeText(
+      "Name\ne@e.com\nEducation\nMIT\nB.Tech (Batch of 2027), rank 5/10 in dept."
+    );
+    expect(d.education[0].degree).toBe("B.Tech (Batch of 2027), rank 5/10 in dept.");
+  });
+
+  it("keeps a percentage that isn't a score", () => {
+    const d = parseResumeText(
+      "Name\ne@e.com\nEducation\nMIT\nB.Tech, thesis improved model accuracy by 15% overall."
+    );
+    expect(d.education[0].degree).toBe("B.Tech, thesis improved model accuracy by 15% overall.");
+  });
+
+  it("still strips a real percentage score", () => {
+    const d = parseResumeText(
+      "Name\ne@e.com\nEducation\nMIT\nB.Tech, Percentage: 92%"
+    );
+    expect(d.education[0].degree).not.toMatch(/92|Percentage/);
+    expect(d.education[0].score).toEqual({ type: "percentage", value: 92 });
+  });
+});

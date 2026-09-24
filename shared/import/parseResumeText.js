@@ -76,10 +76,32 @@ function extractContact(lines) {
   return { name: name.trim(), email, phone, links };
 }
 
-const BULLET_RE = /^[•\-*●◦▪‣]\s+/;
+// "-" and "*" need trailing whitespace ("-5%" is not a bullet); the dedicated
+// glyphs don't, since PDF extraction often drops the space ("•Built ...").
+const BULLET_RE = /^(?:[-*]\s+|[•●◦▪‣]\s*)/;
+const GLYPH_ONLY_RE = /^[•\-*●◦▪‣]$/;
 
 function stripBullet(line) {
   return line.replace(BULLET_RE, "").trim();
+}
+
+// PDF extraction frequently puts a bullet glyph on its own line with the
+// bullet's text on the next one; rejoin them so the glyph isn't lost.
+function joinOrphanGlyphs(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (GLYPH_ONLY_RE.test(lines[i])) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j]) j++;
+      if (j < lines.length && !GLYPH_ONLY_RE.test(lines[j])) {
+        out.push(`${lines[i]} ${lines[j]}`);
+        i = j;
+      }
+      continue;
+    }
+    out.push(lines[i]);
+  }
+  return out;
 }
 
 // A PDF-extracted bullet whose sentence is too long for one line wraps
@@ -192,9 +214,12 @@ function splitEducationEntries(lines) {
   let current = null;
   let lastText = null;
   for (const raw of lines) {
-    const line = raw.trim();
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const line = stripBullet(trimmed);
     if (!line) continue;
     const looksLikeScoreOrDegree =
+      BULLET_RE.test(trimmed) ||
       CGPA_RE.test(line) || PERCENT_RE.test(line) || DEGREE_LINE_RE.test(line) || LABELED_FIELD_RE.test(line);
     // A genuinely new field (score/degree/labeled) is its own extra entry; a
     // plain wrap of the text just above it is the SAME field split by the
@@ -223,20 +248,60 @@ function splitEducationEntries(lines) {
   return entries;
 }
 
+// A bare "5/10" or "15%" is not necessarily a score — "rank 5/10 in dept."
+// and "improved accuracy by 15% overall" are real degree/coursework text
+// that must not be silently deleted just because a number happens to be
+// shaped like one. Only strip a number when an actual score keyword sits
+// next to it (either order, same as CGPA_RE below) — occasionally leaving
+// a genuine score number sitting in the degree text is a visible, fixable
+// imperfection; silently deleting real content is not.
+const SCORE_TEXT_RE = new RegExp(
+  `(?:cgpa|gpa|percentage)\\s*[:\\-]?\\s*\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)?` +
+    `|\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)\\s*(?:cgpa|gpa|percentage)` +
+    `|${CGPA_RE.source}`,
+  "gi"
+);
+const MONTH_YEAR_RE =
+  /(?:expected\s+)?\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}\b/gi;
+// pdf-parse runs right-aligned text into the left column with no space:
+// "SRM Institute of Science and TechnologyKattankulathur, TN".
+const GLUED_LOCATION_RE = /^(.*[a-z)])([A-Z][A-Za-z.]+(?:\s[A-Z][A-Za-z.]+)*,\s*[A-Z][A-Za-z. ]+)$/;
+
+function cleanFieldText(text) {
+  return text.replace(/\s{2,}/g, " ").replace(/^[\s;,|–-]+|[\s;,|–-]+$/g, "");
+}
+
+// Removes the score and dates from a line instead of dropping the whole line,
+// since a degree name often shares a line with them.
+function stripScoreAndDates(line) {
+  return cleanFieldText(line.replace(SCORE_TEXT_RE, " ").replace(MONTH_YEAR_RE, " "));
+}
+
+function extractDates(text) {
+  const found = (text.match(MONTH_YEAR_RE) || []).map((d) => d.replace(/^expected\s+/i, ""));
+  if (found.length >= 2) return { startDate: found[0], endDate: found[found.length - 1] };
+  if (found.length === 1) return { startDate: "", endDate: found[0] };
+  return { startDate: "", endDate: "" };
+}
+
+function splitGluedLocation(header) {
+  const m = header.match(GLUED_LOCATION_RE);
+  return m ? `${m[1]}, ${m[2]}` : header;
+}
+
 function parseEducation(lines) {
   return splitEducationEntries(lines).map((entry) => {
-    const extraText = entry.extra.join(" ");
-    const score = extractScore(entry.header) || extractScore(extraText);
-    const leftover = entry.extra.filter((l) => !CGPA_RE.test(l) && !PERCENT_RE.test(l)).join(", ");
+    const allText = [entry.header, ...entry.extra].join(" ");
+    const score = extractScore(entry.header) || extractScore(entry.extra.join(" "));
+    const degree = entry.extra.map(stripScoreAndDates).filter(Boolean).join(", ");
     return {
       id: makeId(),
       level: "",
-      institution: entry.header,
-      degree: leftover,
+      institution: splitGluedLocation(stripScoreAndDates(entry.header)),
+      degree,
       branch: "",
       board: "",
-      startDate: "",
-      endDate: "",
+      ...extractDates(allText),
       score,
     };
   });
@@ -299,13 +364,20 @@ const SKILL_SPLIT_RE = /[,;|·•]/;
 function parseSkills(lines) {
   const groups = [];
   const defaultItems = [];
+  let prevLine = "";
   for (const raw of lines) {
     const line = stripBullet(raw);
     if (!line) continue;
     const match = line.match(SKILL_GROUP_LINE_RE);
+    const wrapsPrevGroup = !match && groups.length && /,\s*$/.test(prevLine);
+    prevLine = line;
     if (match) {
       const items = match[2].split(SKILL_SPLIT_RE).map((s) => s.trim()).filter(Boolean);
       if (items.length) groups.push({ id: makeId(), group: match[1].trim(), items });
+    } else if (wrapsPrevGroup) {
+      groups[groups.length - 1].items.push(
+        ...line.split(SKILL_SPLIT_RE).map((s) => s.trim()).filter(Boolean)
+      );
     } else {
       defaultItems.push(...line.split(SKILL_SPLIT_RE).map((s) => s.trim()).filter(Boolean));
     }
@@ -320,7 +392,7 @@ function parseSkills(lines) {
  * up in one bucket for the user to redistribute on the review screen.
  */
 export function parseResumeText(rawText) {
-  const allLines = (rawText || "").split(/\r?\n/).map((l) => l.trim());
+  const allLines = joinOrphanGlyphs((rawText || "").split(/\r?\n/).map((l) => l.trim()));
 
   const firstHeadingIndex = allLines.findIndex((l) => classifyHeading(l));
   const headerLines = firstHeadingIndex === -1 ? allLines : allLines.slice(0, firstHeadingIndex);
