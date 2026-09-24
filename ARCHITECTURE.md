@@ -48,13 +48,12 @@ flowchart LR
     B -->|/api same origin| API[Express API]
     API --> Q[Export queue]
     Q --> W[PDF worker<br/>Puppeteer]
-    API -.-> GH[GitHub API<br/>optional, later]
     API --> R[(Redis<br/>rate limit, cache)]
     API --> DB[(Postgres)]
     API -.-> LLM[LLM adapter<br/>optional, off]
 ```
 
-The browser owns editing state and runs all JD analysis itself, so Analyse costs nothing and works offline. The API owns PDF export, resume import and (later) accounts and optional GitHub import. Postgres, Redis and the separate worker arrive in Phase 4; until then, the API runs Puppeteer in-process behind the same interfaces. Dashed boxes stay switched off until they are needed.
+The browser owns editing state and runs all JD analysis itself, so Analyse costs nothing and works offline. The API owns PDF export, resume import and (later) accounts. Postgres, Redis and the separate worker arrive in Phase 4; until then, the API runs Puppeteer in-process behind the same interfaces. Dashed boxes stay switched off until they are needed.
 
 | Component | Responsibility | Never does |
 | --- | --- | --- |
@@ -62,10 +61,10 @@ The browser owns editing state and runs all JD analysis itself, so Analyse costs
 | `packages/templates` | `renderResumeHTML(resumeData, templateId)` + template CSS + embedded fonts | Access the network or DOM APIs |
 | `packages/schema` | Zod schema for `resumeData`, versions and migrations, shared by frontend and backend | Contain business logic |
 | `packages/text` (analysis engine) | Skill dictionary, JD parsing, match score, keyword gap, eligibility checks, bullet checks, project bullet templates; runs in browser and server | Call any external API |
-| Express API | Validation, rate limiting, PDF export, resume import, (later) auth and optional GitHub import | Render PDFs in-process (after Phase 4) |
+| Express API | Validation, rate limiting, PDF export, resume import, (later) auth | Render PDFs in-process (after Phase 4) |
 | ATS validator | Rules on content and on text extracted from the final PDF | Block download (warnings only) |
 | PDF worker | Headless Chrome, JS off, network off, queued with a concurrency cap | Store PDFs |
-| LLM adapter (optional, off) | Tailoring, import mapping, polishing project bullets, with fabrication guard | Run unless `AI_ENABLED=true` |
+| LLM adapter (optional, off) | Bullet tailoring, resume import mapping, with fabrication guard | Run unless `AI_ENABLED=true` |
 
 ## 4. Repository structure
 
@@ -187,7 +186,6 @@ In the no-AI setup, `suggestion` stays empty and `accepted` stays `"original"`; 
 | jds | id, user_id, jd_hash, raw_text, parsed (JSONB), created_at | Parsed once, reused |
 | analyses | id, resume_id, jd_id, resume_hash, score, report (JSONB), created_at | History of scores |
 | llm_usage | id, user_id, touchpoint, model, input_tokens, output_tokens, cost_inr, created_at | Cost tracking and limits (only if AI is enabled) |
-| github_links | user_id, username, connected_at | Only if optional GitHub import is added; username only, no tokens stored |
 
 ## 6. Core user workflows
 
@@ -287,7 +285,7 @@ Every tip is built from the user's own data or fixed rules, so nothing suggested
 
 - Enabled only with `AI_ENABLED=true` and a key; otherwise the backend never loads `llm/` and the UI hides AI buttons.
 - The adapter supports any provider, so a free tier or a local model (Ollama, for development) can be tried without code changes elsewhere.
-- Candidate features when enabled: bullet tailoring, smarter resume import, polishing project bullets.
+- Candidate features when enabled: bullet tailoring, smarter resume import. (Polishing project bullets and GitHub-assisted import were considered and dropped — Section 9.3–9.4.)
 - Rules that apply when enabled: fabrication guard on every rewrite, structured JSON output, user text treated as data, per-call usage logging, and a daily spend cap. Do not use any free tier that trains on submitted data unless each user gives clear consent.
 
 ## 8. Rendering, ATS validation and PDF export
@@ -339,8 +337,6 @@ flowchart LR
     B --> C[Template engine<br/>2–3 draft bullets]
     C --> D[User edits<br/>with live tips]
     D --> E[Saved to projects]
-    C -.-> F[Polish with AI<br/>optional]
-    F -.-> D
 ```
 
 ### 9.1 The project form
@@ -374,23 +370,13 @@ Example output for the form above: "Built a complaint-tracking web app using Nod
 
 Rules: templates never add words that change meaning (no "scalable", "high-performance"); verbs come from the action-verb list; drafts go through the same bullet checks as hand-written ones. Drafts appear as editable text, and the student's edits are what gets saved.
 
-### 9.3 Optional: Polish with AI
+### 9.3 Descoped: Polish with AI
 
-Only shown when the AI layer is enabled (Section 7.5). It rewrites the draft bullets for flow, using only the form answers as source, and the fabrication guard checks the output. The template draft stays as `original`, so Revert always works.
+**Decision (Sept 2026): dropped, not building.** The generic per-bullet Tailor button (Section 6.4) already covers AI rewriting for any bullet, project bullets included, when `AI_ENABLED=true`. A project-specific variant would have duplicated that with no real gain, so it isn't on the roadmap.
 
-### 9.4 Optional later: GitHub import
+### 9.4 Descoped: GitHub import
 
-A small "Import from GitHub" button on the project form, added after launch. It only pre-fills form fields; it never writes bullets.
-
-The user enters a GitHub username; there is no OAuth. Public repo data needs no user token, and the `public_repo` OAuth scope would grant write access, which contradicts the read-only promise.
-
-The user picks one repo; one GraphQL query fetches its name, description, topics, link and manifest files (`package.json`, `requirements.txt`, `pom.xml`, `build.gradle`, `go.mod`). These pre-fill Title, What you built, Tech used and Link. The student still answers Problem, Role and Result.
-
-**Tech stack comes from manifests first**, then languages. Manifest dependencies are mapped through the skill dictionary, so `express` and `mongoose` become Express and MongoDB, which are facts rather than guesses.
-
-**Caching:** repo data is cached in Redis for 1 hour per username. The server uses one GitHub token of its own (5,000 requests per hour).
-
-**If private repos are ever needed:** use a GitHub App with Metadata: read and Contents: read, never an OAuth App with `repo` scope.
+**Decision (Sept 2026): dropped, not building.** The design below is kept for the record in case this is revisited, not as a live plan. It would have pre-filled the project form from a public repo (name, description, manifest-derived tech stack) with no OAuth, one GitHub token of the server's own, and Redis caching per username — real infrastructure for a narrow win, traded away deliberately rather than left half-built. The project form's tech-stack autocomplete and template bullets (Section 9.1–9.2) stand on their own without it.
 
 ## 10. Accounts, persistence and sync (Phase 4)
 
@@ -463,7 +449,6 @@ SESSION_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 PUPPETEER_EXECUTABLE_PATH=
-GITHUB_SERVER_TOKEN=        # only for optional GitHub import
 
 # Optional AI layer: leave AI_ENABLED=false
 AI_ENABLED=false
@@ -535,8 +520,10 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 - [x] Structured project form with tech autocomplete from the skill dictionary
 - [x] `projectBullets.js` template engine, with drafts shown as editable text
 - [x] Project form fields are part of schema v2; existing v1 projects migrate with an empty form and their bullets kept as they are
-- [ ] "Polish with AI" on generated drafts (section 9.3) — the existing per-bullet Tailor button already covers this generically when `AI_ENABLED=true`; a project-specific polish flow is still open
-- [ ] "Import from GitHub" (section 9.4) — explicitly scoped as optional/later in the doc; not started
+- ~~"Polish with AI" on generated drafts (section 9.3)~~ — **descoped (Sept 2026)**, see section 9.3
+- ~~"Import from GitHub" (section 9.4)~~ — **descoped (Sept 2026)**, see section 9.4
+
+Phase 3 is done: every planned item is either shipped or explicitly dropped.
 
 **Exit test:** a student with no GitHub account can add a project and get 2–3 usable bullets in under 2 minutes; every word in a draft traces to a form answer or a fixed template word — enforced by a dedicated test in `tests/projects/projectBullets.test.js` that tokenizes every generated draft and asserts every word traces to the form/tech input or a small fixed vocabulary.
 
@@ -550,7 +537,7 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 
 ### Phase 5 — Growth (after launch)
 
-More templates, DOCX export, optional "Import from GitHub" on the project form, resume sharing links, and placement-cell features such as batch review for a class. The optional AI layer (tailoring, smarter import, polishing project bullets) comes last, once there is budget or a suitable free tier.
+More templates, DOCX export, resume sharing links, and placement-cell features such as batch review for a class. The optional AI layer (bullet tailoring, smarter import) comes last, once there is budget or a suitable free tier. GitHub import and AI polish for project bullets were considered for this phase and dropped (Sept 2026, sections 9.3–9.4) rather than deferred — revisit only if a real need for either resurfaces.
 
 ## 15. Open decisions
 

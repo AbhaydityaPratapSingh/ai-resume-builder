@@ -161,11 +161,13 @@ and wired into the builder. Still open from 2.5: growing the skill
 dictionary and JD test set past the SDE-only starting scope, and the
 post-render PDF text checks (Section 8.3).
 
-Phase 3's core is done too: the structured project form and the
-`projectBullets.js` template engine that turns it into draft bullets. Still
-open from Phase 3: a project-specific "Polish with AI" flow, and "Import
-from GitHub" (both explicitly scoped as optional/later in the architecture
-doc). See the roadmap in the architecture doc.
+Phase 3 is done: the structured project form and the `projectBullets.js`
+template engine that turns it into draft bullets. A project-specific
+"Polish with AI" flow and "Import from GitHub" were both considered and
+dropped rather than deferred (see ARCHITECTURE.md sections 9.3–9.4) — the
+existing Tailor button already covers AI rewriting generically, and GitHub
+import was real infrastructure for a narrow win. See the roadmap in the
+architecture doc.
 
 ## Resume import from PDF
 
