@@ -37,22 +37,39 @@ const MATCHERS = SKILLS.flatMap((skill) =>
   skill.aliases.map((alias) => ({ skillId: skill.id, alias, regex: aliasPattern(alias) }))
 ).sort((a, b) => b.alias.length - a.alias.length);
 
-function overlaps(start, end, claimed) {
-  return claimed.some(([s, e]) => start < e && end > s);
+// A candidate span only loses to an already-claimed span when it's glued to
+// the rest of that span by punctuation, not real whitespace — "js" stuck to
+// "node.js" via "." is a fragment of one compound token and must not also
+// count as JavaScript, but "Ruby" in "Ruby on Rails" is a genuine standalone
+// word (space on both sides) and must still count as Ruby even though "Ruby
+// on Rails" already claimed the whole phrase for the Rails skill. Same
+// distinction the aliasPattern boundary already draws for symbol characters.
+function overlapsGlued(start, end, text, claimed) {
+  for (const [s, e] of claimed) {
+    if (start >= e || end <= s) continue; // no overlap with this span at all
+    const leftGlued = start <= s || KEEP_LEFT.includes(text[start - 1] || "");
+    const rightGlued = end >= e || KEEP_RIGHT.includes(text[end] || "");
+    if (leftGlued && rightGlued) return true;
+  }
+  return false;
 }
 
-// First match of `regex` in `text` whose span doesn't overlap anything in
-// `claimed`, or null. Resets the shared global regex's lastIndex each call.
-function firstUnclaimedMatch(regex, text, claimed) {
+// Every match of `regex` in `text` that isn't glue-overlapping anything
+// already in `claimed`. A skill mentioned more than once (e.g. "Next.js" in
+// both a title and a requirements line) must have EVERY occurrence claimed —
+// stopping after the first leaves later ones open for a shorter, different
+// skill's alias to match inside (e.g. "js" inside the second "Next.js").
+function allUnclaimedMatches(regex, text, claimed) {
   regex.lastIndex = 0;
+  const matches = [];
   let match;
   while ((match = regex.exec(text))) {
     const start = match.index;
     const end = start + match[0].length;
-    if (!overlaps(start, end, claimed)) return { index: start, end };
+    if (!overlapsGlued(start, end, text, claimed)) matches.push({ index: start, end });
     if (regex.lastIndex === match.index) regex.lastIndex++; // guard zero-width
   }
-  return null;
+  return matches;
 }
 
 const CONTEXT_WORDS = ["language", "programming", "scripting", "developer", "engineer"];
@@ -86,18 +103,26 @@ export function matchSkills(text) {
   for (const { skillId, regex } of MATCHERS) {
     if (found.has(skillId)) continue;
     const skill = SKILLS.find((s) => s.id === skillId);
-    const match = firstUnclaimedMatch(regex, normalized, claimed);
-    if (!match) continue;
+    const matches = allUnclaimedMatches(regex, normalized, claimed);
+    if (!matches.length) continue;
     if (skill?.ambiguous) {
-      ambiguousHits.push({ skillId, index: match.index, end: match.end });
+      for (const m of matches) ambiguousHits.push({ skillId, index: m.index, end: m.end });
       continue;
     }
     found.add(skillId);
-    matchedPositions.push(match.index);
-    claimed.push([match.index, match.end]);
+    // Claim every occurrence, not just the first, so a repeated skill
+    // mention doesn't leave a later one open to a different, shorter alias.
+    for (const m of matches) {
+      matchedPositions.push(m.index);
+      claimed.push([m.index, m.end]);
+    }
   }
 
   for (const { skillId, index, end } of ambiguousHits) {
+    if (found.has(skillId)) {
+      claimed.push([index, end]);
+      continue;
+    }
     if (hasContext(normalized, index, matchedPositions)) {
       found.add(skillId);
       claimed.push([index, end]);

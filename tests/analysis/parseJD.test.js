@@ -224,7 +224,10 @@ Good to have:
 - Exposure to Firebase
     `,
     required: ["java", "kotlin", "oop", "restapi"],
-    preferred: ["flutter", "reactnative", "firebase"],
+    // "React Native" also credits bare "react": it's a real, space-separated
+    // word in the text, not a fabrication — same rule that credits "ruby"
+    // from "Ruby on Rails" elsewhere in this set.
+    preferred: ["flutter", "reactnative", "react", "firebase"],
     eligibility: {},
   },
   {
@@ -242,7 +245,9 @@ Preferred:
 - Exposure to Terraform or Ansible
 - Familiarity with Nginx
     `,
-    required: ["linux", "bash", "docker", "kubernetes", "cicd", "jenkins", "githubactions", "gitlabci", "aws", "azure"],
+    // "GitHub Actions" also credits bare "github" — same sub-word rule as
+    // "Ruby on Rails" -> ruby and "React Native" -> react above.
+    required: ["linux", "bash", "docker", "kubernetes", "cicd", "jenkins", "githubactions", "github", "gitlabci", "aws", "azure"],
     preferred: ["terraform", "ansible", "nginx"],
     eligibility: {},
   },
@@ -280,12 +285,11 @@ Nice to have:
 - Exposure to Docker
 - Familiarity with Angular
     `,
-    // Known matcher limitation, not asserted against here: "C#" also
-    // triggers a spurious bare "c" match (the ambiguous-skill boundary
-    // check doesn't treat "#" as blocking), same as "C++" elsewhere. C#
-    // and C are different languages, so this one is a real precision
-    // defect worth fixing, unlike the Next.js/React-Native overlaps below.
-    required: ["csharp", "dotnet", "mssql", "oop", "azure"],
+    // "SQL Server" also credits bare "sql" — same sub-word rule as
+    // "Ruby on Rails" -> ruby above. The "C#" bare-"c" false match this
+    // comment used to document is fixed too (see the "bare 'c'" describe
+    // block below) — "c" correctly does not appear here.
+    required: ["csharp", "dotnet", "mssql", "sql", "oop", "azure"],
     preferred: ["docker", "angular"],
     eligibility: {},
   },
@@ -361,7 +365,7 @@ Nice to have:
 - Exposure to Jenkins or GitHub Actions
     `,
     required: ["aws", "docker", "kubernetes", "python", "bash", "linux"],
-    preferred: ["terraform", "jenkins", "githubactions"],
+    preferred: ["terraform", "jenkins", "githubactions", "github"],
     eligibility: {},
   },
   {
@@ -1034,20 +1038,24 @@ Ideal Persona would:
   },
 ];
 
-// Known limitation, discovered while hand-labelling the JDs above: the
-// ambiguous "c" skill's boundary check doesn't treat "+" or "#" as
-// word-boundary-blocking, so any JD mentioning "C++" or "C#" also
-// registers a spurious bare "c" match. Harmless-ish for C++ (a C++
-// requirement plausibly implies C fundamentals) but a real precision
-// defect for C# (a different language) — worth fixing in matcher.js by
-// excluding symbol characters from the ambiguous-skill right-boundary,
-// not attempted here since it risks breaking the C++/C#/.NET matching
-// this same file already tests above.
-describe("known limitation: bare 'c' false-matches inside C++/C#", () => {
-  it("documents (does not yet fix) the false match", () => {
+// Was a known limitation (hand-labelling notes above): the ambiguous "c"
+// skill's boundary check didn't treat "+" or "#" as word-boundary-blocking,
+// so any JD mentioning "C++" or "C#" also registered a spurious bare "c"
+// match. Fixed as a side effect of matcher.js's overlap-claiming (the "c"
+// inside "c#"/"c++" is now claimed by the longer alias, the same mechanism
+// that stops "js" inside "Node.js" from also matching JavaScript) — a real
+// standalone "C" mention elsewhere in the text still matches normally.
+describe("bare 'c' no longer false-matches inside C++/C#", () => {
+  it("C# does not also register bare C", () => {
     const parsed = parseJD("Requirements: strong C# experience.");
     expect(parsed.required).toContain("csharp");
-    expect(parsed.required).toContain("c"); // ← the bug: should not be here
+    expect(parsed.required).not.toContain("c");
+  });
+
+  it("a real standalone C mention still matches", () => {
+    const parsed = parseJD("Requirements: C and C++ programming language experience.");
+    expect(parsed.required).toContain("cpp");
+    expect(parsed.required).toContain("c");
   });
 });
 
