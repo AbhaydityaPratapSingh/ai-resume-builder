@@ -79,6 +79,34 @@ Good to have:
     expect(scoreResume(above, jd).eligibility.find((c) => c.id === "cgpa").passed).toBe(true);
   });
 
+  it("checks CGPA against the structured score object", () => {
+    const resume = resumeWith({
+      education: [{ id: "e1", level: "btech", degree: "B.Tech", score: { type: "cgpa", value: 8.9, outOf: 10 } }],
+    });
+    expect(scoreResume(resume, jd).eligibility.find((c) => c.id === "cgpa").passed).toBe(true);
+  });
+
+  it("prefers degree-level CGPA over Class X/XII marks when level is known", () => {
+    const resume = resumeWith({
+      education: [
+        { id: "e1", level: "class12", score: { type: "cgpa", value: 9.5, outOf: 10 } },
+        { id: "e2", level: "btech", degree: "B.Tech", score: { type: "cgpa", value: 6.5, outOf: 10 } },
+      ],
+    });
+    const cgpaCheck = scoreResume(resume, jd).eligibility.find((c) => c.id === "cgpa");
+    expect(cgpaCheck.passed).toBe(false);
+    expect(cgpaCheck.detail).toContain("6.5");
+  });
+
+  it("matches branch eligibility using the structured branch field", () => {
+    const jdWithBranch = parseJD("Requirements: React. Eligibility: CSE/IT branch only.");
+    const resume = resumeWith({
+      education: [{ id: "e1", level: "btech", degree: "B.Tech", branch: "Information Technology" }],
+    });
+    const check = scoreResume(resume, jdWithBranch).eligibility.find((c) => c.id === "branch");
+    expect(check.passed).toBe(true);
+  });
+
   it("suggests the section with more matched skills first", () => {
     const resume = resumeWith({
       projects: [

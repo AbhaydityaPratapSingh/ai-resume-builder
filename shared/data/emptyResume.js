@@ -6,8 +6,24 @@ export const SECTION_KEYS = [
   "projects",
   "education",
   "skills",
+  "achievements",
+  "responsibilities",
   "certifications",
 ];
+
+// Indian placement forms distinguish schooling from degree programs — branch
+// only applies to a degree, board only to Class X/XII.
+export const EDUCATION_LEVELS = [
+  { id: "btech", label: "B.Tech / B.E." },
+  { id: "mtech", label: "M.Tech / M.E." },
+  { id: "bsc", label: "B.Sc / BCA / Other UG" },
+  { id: "class12", label: "Class XII" },
+  { id: "class10", label: "Class X" },
+  { id: "other", label: "Other" },
+];
+
+export const DEGREE_LEVELS = ["btech", "mtech", "bsc", "other"];
+export const SCHOOL_LEVELS = ["class10", "class12"];
 
 export function makeId() {
   return Math.random().toString(36).slice(2, 10);
@@ -47,6 +63,8 @@ export function emptyResume() {
     education: [],
     skills: [],
     projects: [],
+    achievements: [],
+    responsibilities: [],
     certifications: [],
     layout: {
       templateId: "classic",

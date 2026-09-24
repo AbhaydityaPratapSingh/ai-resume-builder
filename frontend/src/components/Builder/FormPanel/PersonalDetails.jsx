@@ -13,6 +13,8 @@ const LINK_TYPES = [
   { type: "github", label: "GitHub", placeholder: "github.com/aditi" },
   { type: "portfolio", label: "Portfolio", placeholder: "aditi.dev" },
   { type: "leetcode", label: "LeetCode", placeholder: "leetcode.com/u/aditi" },
+  { type: "codechef", label: "CodeChef", placeholder: "codechef.com/users/aditi" },
+  { type: "codeforces", label: "Codeforces", placeholder: "codeforces.com/profile/aditi" },
 ];
 
 export default function PersonalDetails() {

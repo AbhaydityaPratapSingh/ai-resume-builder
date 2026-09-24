@@ -6,6 +6,9 @@ export {
   hasPendingSuggestion,
   SCHEMA_VERSION,
   SECTION_KEYS,
+  EDUCATION_LEVELS,
+  DEGREE_LEVELS,
+  SCHOOL_LEVELS,
 } from "./data/emptyResume.js";
 export { migrateResumeData, normalizeResumeData } from "./schema/migrations.js";
 export { safeUrl, displayUrl } from "./templates/safeUrl.js";
@@ -18,5 +21,5 @@ export {
 export { SKILLS, findSkill } from "./text/skills.js";
 export { matchSkills } from "./text/matcher.js";
 export { parseJD } from "./text/parseJD.js";
-export { scoreResume } from "./text/score.js";
+export { scoreResume, parseScoreValue } from "./text/score.js";
 export { checkBullet, jdAwareTip } from "./text/bulletChecks.js";

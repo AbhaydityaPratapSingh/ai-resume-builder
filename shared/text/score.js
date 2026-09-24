@@ -1,6 +1,14 @@
 import { matchSkills } from "./matcher.js";
 import { findSkill } from "./skills.js";
-import { bulletText } from "../data/emptyResume.js";
+import { bulletText, DEGREE_LEVELS } from "../data/emptyResume.js";
+
+// Prefers degree entries (B.Tech, etc.) over Class X/XII when a level is
+// known, so a JD's CGPA/branch cutoff isn't checked against school marks.
+// Entries with no level set (older data) are kept either way.
+function degreeEducation(education) {
+  const degrees = education.filter((e) => !e.level || DEGREE_LEVELS.includes(e.level));
+  return degrees.length ? degrees : education;
+}
 
 function resumeSkillListText(resumeData) {
   return (resumeData.skills || []).flatMap((g) => g.items || []).join(", ");
@@ -18,16 +26,24 @@ function allBulletText(resumeData) {
   return items.flatMap((item) => (item.bullets || []).map(bulletText)).join("\n");
 }
 
+function otherText(resumeData) {
+  const achievements = (resumeData.achievements || []).map((a) => a.text || "").join("\n");
+  const responsibilities = (resumeData.responsibilities || [])
+    .flatMap((r) => (r.bullets || []).map(bulletText))
+    .join("\n");
+  return [achievements, responsibilities].join("\n");
+}
+
 function fullResumeText(resumeData) {
   const summary = typeof resumeData.summary === "string" ? resumeData.summary : (resumeData.summary?.text || "");
-  return [resumeSkillListText(resumeData), summary, allBulletText(resumeData)].join("\n");
+  return [resumeSkillListText(resumeData), summary, allBulletText(resumeData), otherText(resumeData)].join("\n");
 }
 
 function skillLabels(ids) {
   return ids.map((id) => findSkill(id)?.name || id);
 }
 
-function parseScoreValue(score) {
+export function parseScoreValue(score) {
   if (!score) return null;
   if (typeof score === "object" && typeof score.value === "number") return score;
   if (typeof score === "string") {
@@ -41,7 +57,7 @@ function parseScoreValue(score) {
 
 function checkEligibility(resumeData, eligibility) {
   const checks = [];
-  const education = resumeData.education || [];
+  const education = degreeEducation(resumeData.education || []);
 
   if (eligibility.minCgpa != null) {
     const best = education

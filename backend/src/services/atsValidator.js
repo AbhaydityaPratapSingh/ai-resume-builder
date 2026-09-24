@@ -12,6 +12,7 @@ function allBullets(resumeData) {
   return [
     ...(resumeData.experience || []).flatMap((e) => e.bullets || []),
     ...(resumeData.projects || []).flatMap((p) => p.bullets || []),
+    ...(resumeData.responsibilities || []).flatMap((r) => r.bullets || []),
   ];
 }
 
@@ -60,7 +61,7 @@ export function validateForATS(resumeData) {
   if (!texts.length) {
     warnings.push({
       field: "bullets",
-      message: "No bullets under any experience or project.",
+      message: "No bullets under any experience, project or responsibility.",
     });
   }
 

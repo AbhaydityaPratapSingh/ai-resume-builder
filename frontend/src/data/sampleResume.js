@@ -34,17 +34,23 @@ export const SAMPLE_RESUME = {
   education: [
     {
       id: "1",
+      level: "btech",
       institution: "VIT Pune",
-      degree: "B.Tech CSE",
+      degree: "B.Tech",
+      branch: "Computer Science",
       startDate: "2022",
       endDate: "2026",
-      score: "CGPA 8.6/10",
+      score: { type: "cgpa", value: 8.6, outOf: 10 },
     },
   ],
   skills: [
     { id: "s1", group: "Languages", items: ["Java", "Python", "SQL"] },
     { id: "s2", group: "Frameworks", items: ["React", "Express"] },
   ],
+  achievements: [
+    { id: "ach1", text: "Finalist, Smart India Hackathon 2025 (top 30 of 4,000 teams)" },
+  ],
+  responsibilities: [],
   certifications: [],
   layout: { templateId: "classic", sectionOrder: undefined, hidden: [] },
 };

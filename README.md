@@ -18,6 +18,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
   runs entirely in the browser, no API key needed
 - Live bullet-writing tips (weak opener, no measurable result, passive voice,
   length) plus JD-aware tips built from your own tech stack
+- Indian placement fields: Class X/XII vs. degree level, structured
+  CGPA/percentage with eligibility checks, branch/board, achievements,
+  positions of responsibility, LeetCode/CodeChef/Codeforces links
 - Optional per-bullet AI rewrite with accept / revert — the original is never
   overwritten
 - Rules-based ATS validation before every export
@@ -145,8 +148,10 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 
 ## Status
 
-Phases 1, 2 and 2.1 are done. Phase 2.5's core analysis engine (skill
-dictionary, JD parser, scoring, bullet tips) is in and wired into the builder.
-Still open from Phase 2.5: the Indian placement fields on the education form,
-resume import from PDF, and growing the dictionary/test set past the SDE-only
-starting scope. See the roadmap in the architecture doc.
+Phases 1, 2 and 2.1 are done. Phase 2.5's analysis engine (skill dictionary,
+JD parser, scoring, bullet tips) and Indian placement fields (education
+level/branch/board, structured scores, achievements, positions of
+responsibility, coding-profile links) are in and wired into the builder.
+Still open from Phase 2.5: resume import from PDF, and growing the
+dictionary/test set past the SDE-only starting scope. See the roadmap in the
+architecture doc.

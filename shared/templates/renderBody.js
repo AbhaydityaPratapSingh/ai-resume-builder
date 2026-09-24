@@ -1,6 +1,19 @@
 import { escapeHtml, joinNonEmpty } from "./escapeHtml.js";
 import { safeUrl, displayUrl } from "./safeUrl.js";
 import { bulletText, SECTION_KEYS } from "../data/emptyResume.js";
+import { parseScoreValue } from "../text/score.js";
+
+// Formats a structured {type, value, outOf} score, or falls back to a
+// legacy free-text score string unchanged.
+function formatScore(score) {
+  const parsed = parseScoreValue(score);
+  if (parsed) {
+    return parsed.type === "percentage"
+      ? `${parsed.value}%`
+      : `CGPA ${parsed.value}${parsed.outOf ? `/${parsed.outOf}` : ""}`;
+  }
+  return typeof score === "string" ? score : "";
+}
 
 function renderBullets(bullets) {
   const items = (bullets || []).map(bulletText).filter((t) => t && t.trim());
@@ -53,16 +66,52 @@ function renderEducation(education) {
     <section class="section">
       <h2>Education</h2>
       ${items
-        .map(
-          (e) => `
+        .map((e) => {
+          const degreeLine = joinNonEmpty([e.degree, e.branch], ", ");
+          const score = formatScore(e.score);
+          const subParts = [score, e.board].filter(Boolean).map(escapeHtml);
+          return `
         <div class="entry">
           <div class="entry-head">
             <span class="entry-title">${escapeHtml(e.institution)}${
-            e.institution && e.degree ? " · " : ""
-          }${escapeHtml(e.degree)}</span>
+            e.institution && degreeLine ? " · " : ""
+          }${escapeHtml(degreeLine)}</span>
             ${renderDateRange(e.startDate, e.endDate)}
           </div>
-          ${e.score ? `<div class="entry-sub">${escapeHtml(e.score)}</div>` : ""}
+          ${subParts.length ? `<div class="entry-sub">${subParts.join("  |  ")}</div>` : ""}
+        </div>`;
+        })
+        .join("")}
+    </section>`;
+}
+
+function renderAchievements(achievements) {
+  const items = (achievements || []).filter((a) => a.text?.trim());
+  if (!items.length) return "";
+  return `
+    <section class="section">
+      <h2>Achievements</h2>
+      <ul class="bullets">${items.map((a) => `<li>${escapeHtml(a.text)}</li>`).join("")}</ul>
+    </section>`;
+}
+
+function renderResponsibilities(responsibilities) {
+  const items = (responsibilities || []).filter((r) => r.role || r.org);
+  if (!items.length) return "";
+  return `
+    <section class="section">
+      <h2>Positions of Responsibility</h2>
+      ${items
+        .map(
+          (r) => `
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-title">${escapeHtml(r.role)}${
+            r.role && r.org ? " · " : ""
+          }${escapeHtml(r.org)}</span>
+            ${renderDateRange(r.startDate, r.endDate)}
+          </div>
+          ${renderBullets(r.bullets)}
         </div>`
         )
         .join("")}
@@ -141,6 +190,8 @@ const SECTION_RENDERERS = {
   projects: (d) => renderProjects(d.projects),
   education: (d) => renderEducation(d.education),
   skills: (d) => renderSkills(d.skills),
+  achievements: (d) => renderAchievements(d.achievements),
+  responsibilities: (d) => renderResponsibilities(d.responsibilities),
   certifications: (d) => renderCertifications(d.certifications),
 };
 

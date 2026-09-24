@@ -4,6 +4,8 @@ import Experience from "./Experience.jsx";
 import Projects from "./Projects.jsx";
 import Education from "./Education.jsx";
 import Skills from "./Skills.jsx";
+import Achievements from "./Achievements.jsx";
+import Responsibilities from "./Responsibilities.jsx";
 import Certifications from "./Certifications.jsx";
 
 export default function FormPanel() {
@@ -15,6 +17,8 @@ export default function FormPanel() {
       <Projects />
       <Education />
       <Skills />
+      <Achievements />
+      <Responsibilities />
       <Certifications />
     </div>
   );

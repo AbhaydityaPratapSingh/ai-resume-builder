@@ -521,7 +521,7 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 ### Phase 2.5 — Better analysis (2–3 weeks)
 
 - [ ] Monorepo with `packages/schema`, `packages/templates`, `packages/text` — kept as `shared/text/` instead, alongside the existing `shared/templates/` and `shared/schema/`; revisit if the package ever needs to publish separately
-- [ ] Indian placement fields: Class X/XII, CGPA/percentage, skill groups, achievements, responsibilities, coding profiles
+- [x] Indian placement fields: Class X/XII vs. degree level, structured CGPA/percentage score, branch/board, skill groups (already done), achievements, positions of responsibility, CodeChef/Codeforces links
 - [x] Skill dictionary (SDE scope, ~130 skills with aliases — analyst/core branches deferred per the Sept 2026 scope decision) and rule-based JD parser, running in the browser
 - [x] Scoring engine, keyword gap, eligibility checks, suggested section order
 - [x] Bullet checks and JD-aware tips

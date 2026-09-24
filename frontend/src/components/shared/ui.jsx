@@ -21,6 +21,20 @@ export function TextArea({ label, hint, rows = 3, ...props }) {
   return label ? <Field label={label} hint={hint}>{area}</Field> : area;
 }
 
+export function Select({ label, hint, options, placeholder, ...props }) {
+  const select = (
+    <select className={inputClass} {...props}>
+      {placeholder ? <option value="">{placeholder}</option> : null}
+      {options.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+  return label ? <Field label={label} hint={hint}>{select}</Field> : select;
+}
+
 export function Button({ variant = "primary", className = "", ...props }) {
   const base =
     "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";

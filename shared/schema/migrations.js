@@ -36,6 +36,8 @@ function v1ToV2(data) {
     skills: flatSkills.length
       ? [{ id: makeId(), group: "Skills", items: flatSkills }]
       : [],
+    achievements: [],
+    responsibilities: [],
     certifications: data.certifications || [],
     layout: {
       templateId: data.meta?.selectedTemplateId || "classic",
@@ -97,21 +99,47 @@ export function normalizeResumeData(data) {
       .filter((i) => i && typeof i === "object")
       .map((i) => ({ ...i, id: i.id || makeId() }));
 
+  // Indian placement fields added after the first v2 release: default
+  // to "" rather than assuming a level, so the form shows an empty
+  // selector instead of silently guessing B.Tech for older data.
+  const education = list(data.education).map((e) => ({
+    level: "",
+    branch: "",
+    board: "",
+    score: null,
+    ...e,
+  }));
+
+  const achievements = (Array.isArray(data.achievements) ? data.achievements : [])
+    .filter((a) => a && typeof a === "object")
+    .map((a) => ({ id: a.id || makeId(), text: typeof a.text === "string" ? a.text : "" }));
+
+  const responsibilities = withBullets(data.responsibilities);
+
   const layout = data.layout || {};
+  // A section added after some users already persisted a sectionOrder must
+  // still be appended to it, or it silently never renders for them even
+  // though its data is present.
+  const baseOrder =
+    Array.isArray(layout.sectionOrder) && layout.sectionOrder.length
+      ? layout.sectionOrder
+      : [...SECTION_KEYS];
+  const sectionOrder = [...baseOrder, ...SECTION_KEYS.filter((k) => !baseOrder.includes(k))];
+
   return {
     schemaVersion: SCHEMA_VERSION,
     personal: { ...personal, links },
     summary: typeof data.summary === "string" ? data.summary : "",
     experience: withBullets(data.experience),
     projects: withBullets(data.projects),
-    education: list(data.education),
+    education,
     skills: normalizeSkills(data.skills),
+    achievements,
+    responsibilities,
     certifications: list(data.certifications),
     layout: {
       templateId: layout.templateId || data.meta?.selectedTemplateId || "classic",
-      sectionOrder: Array.isArray(layout.sectionOrder) && layout.sectionOrder.length
-        ? layout.sectionOrder
-        : [...SECTION_KEYS],
+      sectionOrder,
       hidden: Array.isArray(layout.hidden) ? layout.hidden : [],
     },
     meta: { targetJD: data.meta?.targetJD || "" },
