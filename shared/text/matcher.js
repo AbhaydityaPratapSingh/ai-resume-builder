@@ -2,7 +2,14 @@ import { SKILLS } from "./skills.js";
 
 // Characters that matter inside a skill alias (C++, C#, .NET, Node.js) and
 // must not be treated as word boundaries.
-const KEEP = "+#.";
+//
+// Left and right use different sets: a leading "." (".NET") needs guarding
+// on the left so it isn't read as a continuation of a preceding token, but
+// a trailing "." after a symbol-ending alias (a bullet ending "...C++.")
+// is virtually always sentence punctuation, never part of the skill name —
+// including "." in the right-side set silently dropped that match.
+const KEEP_LEFT = "+#.";
+const KEEP_RIGHT = "+#";
 
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -14,8 +21,8 @@ function aliasPattern(alias) {
   const escaped = escapeRegExp(alias.toLowerCase());
   const leadsWithWord = /^[a-z0-9]/.test(alias);
   const endsWithWord = /[a-z0-9]$/.test(alias);
-  const left = leadsWithWord ? "(?<![a-z0-9])" : `(?<![a-z0-9${KEEP}])`;
-  const right = endsWithWord ? "(?![a-z0-9])" : `(?![a-z0-9${KEEP}])`;
+  const left = leadsWithWord ? "(?<![a-z0-9])" : `(?<![a-z0-9${KEEP_LEFT}])`;
+  const right = endsWithWord ? "(?![a-z0-9])" : `(?![a-z0-9${KEEP_RIGHT}])`;
   return new RegExp(`${left}${escaped}${right}`, "i");
 }
 

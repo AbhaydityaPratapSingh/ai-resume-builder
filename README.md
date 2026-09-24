@@ -157,12 +157,12 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 
 ## Status
 
-Phases 1, 2 and 2.1 are done. Phase 2.5 is functionally complete: the
-analysis engine (skill dictionary, JD parser, scoring, bullet tips), Indian
-placement fields, rule-based PDF import with a review screen, and
-post-render PDF checks are all in and wired into the builder. Still open
-from 2.5: growing the skill dictionary and JD test set past the SDE-only
-starting scope.
+Phases 1, 2, 2.1 and 2.5 are done: the analysis engine (skill dictionary,
+JD parser, scoring, bullet tips) is tested against 30 hand-labelled JDs,
+Indian placement fields, rule-based PDF import with a review screen, and
+post-render PDF checks are all in and wired into the builder. Still open:
+the skill dictionary itself stays SDE-scoped (~130 skills) by deliberate
+decision — grow it if the product expands past that.
 
 Phase 3 is done: the structured project form, the `projectBullets.js`
 template engine, and importing projects from GitHub ranked against the

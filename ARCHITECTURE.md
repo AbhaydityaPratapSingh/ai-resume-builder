@@ -260,6 +260,8 @@ It also covers analyst-role terms (Excel, Power BI, SQL, stakeholder reporting).
 4. Guard ambiguous short names (Go, R, C) by requiring nearby context such as "language", "programming" or another skill in a list.
 5. Extract eligibility: CGPA or percentage cutoffs, allowed branches, graduation year. These are checked against the education section.
 
+**Known limitation, undiscovered until the JD test set grew to 30 real-style postings:** the ambiguous "c" skill's own boundary check doesn't treat "+" or "#" as word-boundary-blocking, so "C++" and "C#" both also register a spurious bare "c" match. Harmless-ish for C++ (plausibly implies C fundamentals) but a real precision defect for C# (a different language) — documented and reproduced by a test in `tests/analysis/parseJD.test.js`, not yet fixed. A related bug in the same area *was* fixed while building that test set: a trailing period right after a symbol-ending alias ("...experience with C++.") was being swallowed by the same boundary mechanism and silently dropping the match — see `shared/text/matcher.js`'s `KEEP_LEFT`/`KEEP_RIGHT` split.
+
 ### 7.3 Scoring engine
 
 1. Normalize skills on both sides with the dictionary, so "ReactJS" and "React.js" count as React.
@@ -523,7 +525,9 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 - [x] Bullet checks and JD-aware tips
 - [x] Resume import from PDF (rule-based, with review screen) — entry-level splitting depends on the source PDF's bullets carrying a glyph (•, -, etc.); resumes without one degrade to one entry per line, still reviewable, never dropped
 - [x] Post-render PDF text checks (section 8.3): name/email extractable, section-heading order matches the renderer's own output, page-count info note — attached to the PDF response as a header, merged into the same ATS report the pre-render checks already show
-- [ ] Analysis test set grown to 30 JDs — 8 labelled JDs in `tests/analysis/` so far, recall asserted ≥90%; grow toward 30 as real JDs are collected
+- [x] Analysis test set grown to 30 JDs (`tests/analysis/parseJD.test.js`) — written in the style of real Indian campus-placement postings (LinkedIn/Naukri aren't reachable from this repo's tooling) rather than scraped verbatim, each independently read and hand-labelled before checking against the parser's actual output. Real postings from an actual campus placement portal are a stronger source whenever they're available — replace synthetic entries with real ones as they come in, rather than just adding more
+
+Phase 2.5 is done.
 
 **Exit test:** the same resume and JD give the same score every time; parser recall is at least 90% on required skills in the test set.
 
