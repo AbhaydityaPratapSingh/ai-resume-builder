@@ -13,16 +13,16 @@ export const useAppStore = create((set) => ({
   view: "landing",
   aiEnabled: false,
   backendUp: false,
-  keywordGap: null,
-  matchScore: null,
+  // Result of the rule-based analysis engine (shared/text): score, matched
+  // and missing skills, eligibility checks, suggested section order.
+  analysis: null,
   atsReport: null,
-  // The resume + JD the analysis panels were computed from.
+  // The resume + JD the analysis result was computed from.
   analysisHash: null,
 
   setView: (view) => set({ view }),
   setHealth: ({ backendUp, aiEnabled }) => set({ backendUp, aiEnabled }),
-  setAnalysis: ({ keywordGap, matchScore, analysisHash }) =>
-    set({ keywordGap, matchScore, analysisHash }),
-  clearAnalysis: () => set({ keywordGap: null, matchScore: null, analysisHash: null }),
+  setAnalysis: ({ analysis, analysisHash }) => set({ analysis, analysisHash }),
+  clearAnalysis: () => set({ analysis: null, analysisHash: null }),
   setAtsReport: (atsReport) => set({ atsReport }),
 }));

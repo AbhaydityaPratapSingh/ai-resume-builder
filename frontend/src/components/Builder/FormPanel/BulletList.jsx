@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useResumeStore } from "../../../state/resumeStore.js";
 import { useAppStore } from "../../../state/appStore.js";
 import { tailorBullet } from "../../../api/client.js";
+import { checkBullet, jdAwareTip, parseJD } from "@resume-maker/shared";
 import { Button, TextArea } from "../../shared/ui.jsx";
 import SuggestionCard from "../SuggestionCard.jsx";
 
@@ -20,6 +21,15 @@ export default function BulletList({ section, item, context }) {
   const [errors, setErrors] = useState({});
 
   const canTailor = aiEnabled && Boolean(jdText?.trim());
+
+  // Rule-based tips: run live as the user types, cost nothing, and never
+  // rewrite anything — see shared/text/bulletChecks.js.
+  const jdSkillIds = useMemo(() => {
+    if (!jdText?.trim()) return [];
+    const parsed = parseJD(jdText);
+    return [...parsed.required, ...parsed.preferred];
+  }, [jdText]);
+  const stackTip = useMemo(() => jdAwareTip(item, jdSkillIds), [item, jdSkillIds]);
 
   async function handleTailor(bullet) {
     if (!bullet.original?.trim()) return;
@@ -84,11 +94,25 @@ export default function BulletList({ section, item, context }) {
             onDismiss={() => dismissSuggestion(section, item.id, bullet.id)}
           />
 
+          {checkBullet(bullet.original).map((tip) => (
+            <span
+              key={tip.code}
+              className="mr-1.5 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700"
+            >
+              {tip.message}
+            </span>
+          ))}
+
           {errors[bullet.id] ? (
             <p className="text-xs text-red-500">{errors[bullet.id]}</p>
           ) : null}
         </div>
       ))}
+      {stackTip ? (
+        <p className="rounded bg-sky-50 px-1.5 py-1 text-[11px] text-sky-700">
+          {stackTip.message}
+        </p>
+      ) : null}
       <Button
         variant="ghost"
         className="px-2 py-1 text-xs"

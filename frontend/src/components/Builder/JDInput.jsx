@@ -1,41 +1,27 @@
-import { useState } from "react";
 import { useResumeStore } from "../../state/resumeStore.js";
 import { useAppStore, hashResume } from "../../state/appStore.js";
-import { analyzeKeywordGap, scoreMatch } from "../../api/client.js";
+import { parseJD, scoreResume } from "@resume-maker/shared";
 import { Button, TextArea } from "../shared/ui.jsx";
-import KeywordGapPanel from "./KeywordGapPanel.jsx";
-import MatchScorePanel from "./MatchScorePanel.jsx";
+import AnalysisPanel from "./AnalysisPanel.jsx";
 
 export default function JDInput() {
   const resumeData = useResumeStore((s) => s.resumeData);
   const setTargetJD = useResumeStore((s) => s.setTargetJD);
   const jdText = resumeData.meta.targetJD;
 
-  const aiEnabled = useAppStore((s) => s.aiEnabled);
   const setAnalysis = useAppStore((s) => s.setAnalysis);
   const analysisHash = useAppStore((s) => s.analysisHash);
-  const hasAnalysis = useAppStore((s) => Boolean(s.matchScore || s.keywordGap));
-
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const hasAnalysis = useAppStore((s) => Boolean(s.analysis));
 
   const currentHash = hashResume(resumeData);
   const isStale = hasAnalysis && analysisHash !== currentHash;
 
-  async function handleAnalyze() {
-    setBusy(true);
-    setError(null);
-    try {
-      const [keywordGap, matchScore] = await Promise.all([
-        analyzeKeywordGap(resumeData, jdText),
-        scoreMatch(resumeData, jdText),
-      ]);
-      setAnalysis({ keywordGap, matchScore, analysisHash: hashResume(resumeData) });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
+  // Runs entirely in the browser — no network call, no API key, well under a
+  // second even on a long JD. See shared/text for the analysis engine.
+  function handleAnalyze() {
+    const parsedJD = parseJD(jdText);
+    const analysis = scoreResume(resumeData, parsedJD);
+    setAnalysis({ analysis, analysisHash: hashResume(resumeData) });
   }
 
   return (
@@ -44,15 +30,13 @@ export default function JDInput() {
         <h3 className="text-sm font-semibold tracking-wide text-slate-900 uppercase">
           Target job description
         </h3>
-        {aiEnabled ? (
-          <Button
-            onClick={handleAnalyze}
-            disabled={busy || !jdText.trim()}
-            className="px-3 py-1.5 text-xs"
-          >
-            {busy ? "Analysing..." : isStale ? "Re-run Analyse" : "Analyse"}
-          </Button>
-        ) : null}
+        <Button
+          onClick={handleAnalyze}
+          disabled={!jdText.trim()}
+          className="px-3 py-1.5 text-xs"
+        >
+          {isStale ? "Re-run Analyse" : "Analyse"}
+        </Button>
       </div>
 
       <TextArea
@@ -62,14 +46,9 @@ export default function JDInput() {
         onChange={(e) => setTargetJD(e.target.value)}
       />
 
-      {!aiEnabled ? (
-        <p className="text-xs text-slate-500">
-          Saved with your resume. Rule-based JD matching — score, missing skills and
-          eligibility — is the next thing being built; it will run here with no API key
-          needed.
-        </p>
-      ) : null}
-      {error ? <p className="text-xs text-red-500">{error}</p> : null}
+      <p className="text-xs text-slate-500">
+        Runs in your browser — no account, no API key, nothing sent anywhere.
+      </p>
 
       {isStale ? (
         <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
@@ -78,8 +57,7 @@ export default function JDInput() {
       ) : null}
 
       <div className={isStale ? "opacity-50" : ""}>
-        <MatchScorePanel />
-        <KeywordGapPanel />
+        <AnalysisPanel />
       </div>
     </div>
   );

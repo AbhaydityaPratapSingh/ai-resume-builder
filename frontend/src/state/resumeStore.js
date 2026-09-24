@@ -185,6 +185,21 @@ export const useResumeStore = create(
           resumeData: { ...s.resumeData, meta: { ...s.resumeData.meta, targetJD: jd } },
         })),
 
+      // Moves the given section keys to the front of layout.sectionOrder, in
+      // the order given, keeping every other section's relative order after
+      // them. Used to apply the analysis engine's suggested order.
+      setSectionOrder: (leadingKeys) =>
+        set((s) => {
+          const current = s.resumeData.layout.sectionOrder;
+          const rest = current.filter((k) => !leadingKeys.includes(k));
+          return {
+            resumeData: {
+              ...s.resumeData,
+              layout: { ...s.resumeData.layout, sectionOrder: [...leadingKeys, ...rest] },
+            },
+          };
+        }),
+
       replaceResume: (resumeData) =>
         set({ resumeData: migrateResumeData(resumeData) }),
 
