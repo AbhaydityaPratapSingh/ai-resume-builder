@@ -5,6 +5,7 @@ import {
   makeId,
   makeBullet,
   migrateResumeData,
+  normalizeResumeData,
   SCHEMA_VERSION,
 } from "@resume-maker/shared";
 
@@ -195,6 +196,14 @@ export const useResumeStore = create(
       migrate: (persisted, fromVersion) => ({
         ...persisted,
         resumeData: migrateResumeData(persisted?.resumeData, fromVersion),
+      }),
+      // migrate only fires when the stored version differs, so anything saved
+      // under the current version number is never repaired by it. merge runs
+      // on every rehydrate, which is the only place a bad shape can be caught.
+      merge: (persisted, current) => ({
+        ...current,
+        ...persisted,
+        resumeData: normalizeResumeData(persisted?.resumeData) || emptyResume(),
       }),
     }
   )

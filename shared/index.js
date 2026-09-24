@@ -7,7 +7,7 @@ export {
   SCHEMA_VERSION,
   SECTION_KEYS,
 } from "./data/emptyResume.js";
-export { migrateResumeData } from "./schema/migrations.js";
+export { migrateResumeData, normalizeResumeData } from "./schema/migrations.js";
 export { safeUrl, displayUrl } from "./templates/safeUrl.js";
 export {
   TEMPLATES,
