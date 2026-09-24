@@ -1,4 +1,4 @@
-# AI Resume Builder — Target Architecture & Workflow v2
+# PerfectResume — Target Architecture & Workflow v2
 
 Last updated: 24 Sep 2026 · Abhayditya Pratap Singh
 

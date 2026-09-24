@@ -1,4 +1,4 @@
-# AI Resume Builder
+# PerfectResume
 
 A resume builder with ATS-style JD matching, aimed at Indian campus placements.
 Students paste a job description and get a match score, missing keywords,

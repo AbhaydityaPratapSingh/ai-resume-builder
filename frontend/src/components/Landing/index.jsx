@@ -102,7 +102,7 @@ export default function Landing() {
     <div className="min-h-full overflow-x-clip bg-white text-slate-900">
       <nav className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <span className="text-sm font-semibold">Resume Builder</span>
+          <span className="text-sm font-semibold">PerfectResume</span>
           <div className="flex items-center gap-6">
             <div className="hidden gap-6 text-sm text-slate-500 sm:flex">
               <a href="#how" className="hover:text-slate-900">How it works</a>
@@ -249,7 +249,7 @@ export default function Landing() {
 
       <footer className="border-t border-slate-200">
         <div className="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-400 sm:px-6">
-          © {new Date().getFullYear()} Resume Builder
+          © {new Date().getFullYear()} PerfectResume
         </div>
       </footer>
     </div>

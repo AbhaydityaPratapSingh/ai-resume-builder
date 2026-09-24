@@ -114,7 +114,7 @@ function Header() {
           onClick={() => setView("gallery")}
           className="text-sm font-semibold text-slate-900 hover:text-slate-600"
         >
-          Resume Builder
+          PerfectResume
         </button>
         <select
           value={resumeData.layout.templateId}
