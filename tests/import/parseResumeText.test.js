@@ -364,3 +364,30 @@ Databases, Machine Learning
     ]);
   });
 });
+
+// SCORE_TEXT_RE must only strip a number that's actually a score (adjacent
+// to a cgpa/gpa/percentage keyword). A bare "N/10" or "N%" elsewhere in the
+// degree text is real content, not a score, and must not be silently deleted.
+describe("parseResumeText — doesn't strip a bare N% or N/10 that isn't a score", () => {
+  it("keeps a class rank shaped like a fraction", () => {
+    const d = parseResumeText(
+      "Name\ne@e.com\nEducation\nMIT\nB.Tech (Batch of 2027), rank 5/10 in dept."
+    );
+    expect(d.education[0].degree).toBe("B.Tech (Batch of 2027), rank 5/10 in dept.");
+  });
+
+  it("keeps a percentage that isn't a score", () => {
+    const d = parseResumeText(
+      "Name\ne@e.com\nEducation\nMIT\nB.Tech, thesis improved model accuracy by 15% overall."
+    );
+    expect(d.education[0].degree).toBe("B.Tech, thesis improved model accuracy by 15% overall.");
+  });
+
+  it("still strips a real percentage score", () => {
+    const d = parseResumeText(
+      "Name\ne@e.com\nEducation\nMIT\nB.Tech, Percentage: 92%"
+    );
+    expect(d.education[0].degree).not.toMatch(/92|Percentage/);
+    expect(d.education[0].score).toEqual({ type: "percentage", value: 92 });
+  });
+});

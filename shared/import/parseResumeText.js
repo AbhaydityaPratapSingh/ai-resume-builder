@@ -248,8 +248,17 @@ function splitEducationEntries(lines) {
   return entries;
 }
 
+// A bare "5/10" or "15%" is not necessarily a score — "rank 5/10 in dept."
+// and "improved accuracy by 15% overall" are real degree/coursework text
+// that must not be silently deleted just because a number happens to be
+// shaped like one. Only strip a number when an actual score keyword sits
+// next to it (either order, same as CGPA_RE below) — occasionally leaving
+// a genuine score number sitting in the degree text is a visible, fixable
+// imperfection; silently deleting real content is not.
 const SCORE_TEXT_RE = new RegExp(
-  `(?:cgpa|gpa|percentage)?\\s*[:\\-]?\\s*\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)(?:\\s*cgpa)?|${CGPA_RE.source}`,
+  `(?:cgpa|gpa|percentage)\\s*[:\\-]?\\s*\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)?` +
+    `|\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)\\s*(?:cgpa|gpa|percentage)` +
+    `|${CGPA_RE.source}`,
   "gi"
 );
 const MONTH_YEAR_RE =
