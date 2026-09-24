@@ -19,10 +19,14 @@ export const useAppStore = create((set) => ({
   atsReport: null,
   // The resume + JD the analysis result was computed from.
   analysisHash: null,
+  // The best-effort draft from POST /api/import/pdf, shown on the import
+  // review screen. Cleared once the user accepts or discards it.
+  importDraft: null,
 
   setView: (view) => set({ view }),
   setHealth: ({ backendUp, aiEnabled }) => set({ backendUp, aiEnabled }),
   setAnalysis: ({ analysis, analysisHash }) => set({ analysis, analysisHash }),
   clearAnalysis: () => set({ analysis: null, analysisHash: null }),
   setAtsReport: (atsReport) => set({ atsReport }),
+  setImportDraft: (importDraft) => set({ importDraft }),
 }));

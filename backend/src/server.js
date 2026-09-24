@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 
 import exportRoutes from "./routes/export.js";
+import importRoutes from "./routes/import.js";
 import { isAIEnabled, aiConfigProblem } from "./config.js";
 import { closeBrowser } from "./services/pdfRenderer.js";
 
@@ -18,6 +19,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/export", exportRoutes);
+app.use("/api/import", importRoutes);
 
 // The LLM routes are imported only when the flag is on, so with AI disabled
 // nothing under src/llm/ is loaded and the provider SDK is never touched.

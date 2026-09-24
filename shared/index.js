@@ -23,3 +23,4 @@ export { matchSkills } from "./text/matcher.js";
 export { parseJD } from "./text/parseJD.js";
 export { scoreResume, parseScoreValue } from "./text/score.js";
 export { checkBullet, jdAwareTip } from "./text/bulletChecks.js";
+export { parseResumeText } from "./import/parseResumeText.js";

@@ -3,6 +3,7 @@ import { TEMPLATES } from "@resume-maker/shared";
 
 import Landing from "./components/Landing/index.jsx";
 import TemplateGallery from "./components/TemplateGallery/index.jsx";
+import ImportReview from "./components/Import/ImportReview.jsx";
 import FormPanel from "./components/Builder/FormPanel/index.jsx";
 import PreviewPanel from "./components/Builder/PreviewPanel/index.jsx";
 import JDInput from "./components/Builder/JDInput.jsx";
@@ -150,6 +151,7 @@ export default function App() {
 
   if (view === "landing") return <Landing />;
   if (view === "gallery") return <TemplateGallery />;
+  if (view === "import-review") return <ImportReview />;
 
   return (
     <div className="flex h-full flex-col">

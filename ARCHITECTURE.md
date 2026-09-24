@@ -525,7 +525,7 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 - [x] Skill dictionary (SDE scope, ~130 skills with aliases — analyst/core branches deferred per the Sept 2026 scope decision) and rule-based JD parser, running in the browser
 - [x] Scoring engine, keyword gap, eligibility checks, suggested section order
 - [x] Bullet checks and JD-aware tips
-- [ ] Resume import from PDF (rule-based, with review screen)
+- [x] Resume import from PDF (rule-based, with review screen) — entry-level splitting depends on the source PDF's bullets carrying a glyph (•, -, etc.); resumes without one degrade to one entry per line, still reviewable, never dropped
 - [ ] Post-render PDF text checks; analysis test set with 30 JDs — 8 labelled JDs in `tests/analysis/` so far, recall asserted ≥90%; grow toward 30 as real JDs are collected
 
 **Exit test:** the same resume and JD give the same score every time; parser recall is at least 90% on required skills in the test set.

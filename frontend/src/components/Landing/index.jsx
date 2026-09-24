@@ -8,6 +8,7 @@ import KeywordCloud from "./KeywordCloud.jsx";
 import ScoreDial from "./ScoreDial.jsx";
 import TemplateFlipCard from "./TemplateFlipCard.jsx";
 import Tilt, { useTilt } from "./Tilt.jsx";
+import UploadResumeButton from "../Import/UploadResumeButton.jsx";
 import "./landing.css";
 
 // three.js is only fetched when the backdrop is actually going to render.
@@ -150,8 +151,12 @@ export default function Landing() {
               >
                 See how it works
               </a>
+              <UploadResumeButton />
             </div>
-            <p className="mt-4 text-xs text-slate-400">No sign-up needed to start.</p>
+            <p className="mt-4 text-xs text-slate-400">
+              No sign-up needed to start. Uploading a resume runs the PDF through a
+              rule-based extractor — no API key needed there either.
+            </p>
           </div>
           <Hero3D />
         </section>

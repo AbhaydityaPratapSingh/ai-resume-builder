@@ -2,6 +2,7 @@ import { TEMPLATES, renderResumeHTML } from "@resume-maker/shared";
 import { useResumeStore } from "../../state/resumeStore.js";
 import { useAppStore } from "../../state/appStore.js";
 import { SAMPLE_RESUME } from "../../data/sampleResume.js";
+import UploadResumeButton from "../Import/UploadResumeButton.jsx";
 
 export default function TemplateGallery() {
   const selected = useResumeStore((s) => s.resumeData.layout.templateId);
@@ -21,10 +22,15 @@ export default function TemplateGallery() {
       >
         &larr; Back
       </button>
-      <h1 className="text-2xl font-semibold text-slate-900">Pick a template</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Both are single-column and ATS-safe. You can switch later without losing content.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Pick a template</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Both are single-column and ATS-safe. You can switch later without losing content.
+          </p>
+        </div>
+        <UploadResumeButton className="shrink-0" />
+      </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
         {TEMPLATES.map((template) => (

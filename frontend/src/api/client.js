@@ -40,6 +40,19 @@ export async function downloadPDF(resumeData, templateId) {
 
 export const validateATS = (resumeData) => post("/api/export/validate", { resumeData });
 
+export async function importResumePDF(file) {
+  const res = await fetch("/api/import/pdf", {
+    method: "POST",
+    headers: { "Content-Type": file.type || "application/pdf" },
+    body: file,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error || `Import failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export const analyzeKeywordGap = (resumeData, jdText) =>
   post("/api/llm/keyword-gap", { resumeData, jdText });
 

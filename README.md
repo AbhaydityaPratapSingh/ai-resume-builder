@@ -11,7 +11,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
 
 ## What works today
 
-- Template gallery (two single-column, ATS-safe templates)
+- Template gallery (two single-column, ATS-safe templates), or upload an
+  existing resume PDF and review what a rule-based extractor found before
+  anything is saved
 - Split-screen builder with a true-A4 live preview and page-boundary markers
 - Rule-based JD matching: match score, missing keywords, eligibility checks
   (CGPA/percentage, branch, graduation year) and a suggested section order —
@@ -148,10 +150,22 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 
 ## Status
 
-Phases 1, 2 and 2.1 are done. Phase 2.5's analysis engine (skill dictionary,
-JD parser, scoring, bullet tips) and Indian placement fields (education
-level/branch/board, structured scores, achievements, positions of
-responsibility, coding-profile links) are in and wired into the builder.
-Still open from Phase 2.5: resume import from PDF, and growing the
-dictionary/test set past the SDE-only starting scope. See the roadmap in the
-architecture doc.
+Phases 1, 2 and 2.1 are done. Phase 2.5 is functionally complete: the
+analysis engine (skill dictionary, JD parser, scoring, bullet tips), Indian
+placement fields, and rule-based PDF import with a review screen are all in
+and wired into the builder. Still open: growing the skill dictionary and JD
+test set past the SDE-only starting scope, and Phase 2.5's post-render PDF
+text checks (Section 8.3). See the roadmap in the architecture doc.
+
+## Resume import from PDF
+
+Upload button on the landing page and template gallery. The backend
+extracts text with `pdf-parse` (no OCR — a scanned image with no text layer
+returns a clear error) and a rule-based parser in `shared/import/` splits it
+by common headings, pulls out contact info and structured education scores,
+and groups bulleted lines under their entry. Nothing is saved until the
+review screen's Accept: every detected entry has a checkbox, so a bad split
+is unchecked rather than silently imported. Entry-level splitting depends on
+the source PDF's bullets carrying a literal glyph (•, -, *, etc.) — true for
+essentially every Word/LaTeX/Canva export, but a resume with no bullet
+glyphs at all degrades to one entry per line rather than guessing wrong.
