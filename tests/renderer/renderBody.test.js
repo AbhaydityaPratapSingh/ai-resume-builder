@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderResumeBodyHTML } from "../../shared/templates/renderBody.js";
+import { getTemplateStyles } from "../../shared/templates/index.js";
 import { emptyResume, makeBullet } from "../../shared/data/emptyResume.js";
 
 function resumeWith(overrides) {
@@ -131,5 +132,31 @@ describe("renderResumeBodyHTML — projects", () => {
       })
     );
     expect(html).not.toContain("Present");
+  });
+});
+
+describe("renderResumeBodyHTML — bullet glyph survives PDF text extraction", () => {
+  // Chrome's print-to-PDF doesn't put a CSS ::marker (the native <ul><li>
+  // bullet) into the PDF's extractable text layer, so shared/import/
+  // parseResumeText.js's glyph check (BULLET_RE) never sees one on a resume
+  // this app exported itself — every bullet then reads as a new top-level
+  // entry instead of attaching to the one above it. The glyph has to be a
+  // literal character in the markup, and list-style must be off so it isn't
+  // shown twice.
+  it("writes bullets and achievements with a literal bullet character", () => {
+    const html = renderResumeBodyHTML(
+      resumeWith({
+        experience: [{ id: "e1", role: "Intern", company: "Acme", bullets: [makeBullet("Did work.")] }],
+        achievements: [{ id: "a1", text: "Won a hackathon." }],
+      })
+    );
+    expect(html).toContain("<li>• Did work.</li>");
+    expect(html).toContain("<li>• Won a hackathon.</li>");
+  });
+
+  it("turns off the native list marker so the glyph isn't shown twice", () => {
+    for (const templateId of ["classic", "modern"]) {
+      expect(getTemplateStyles(templateId)).toMatch(/\.bullets\s*\{[^}]*list-style:\s*none/);
+    }
   });
 });

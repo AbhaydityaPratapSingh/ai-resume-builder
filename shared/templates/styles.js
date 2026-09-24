@@ -61,8 +61,11 @@ const BASE = `
   .dates { font-size: 9pt; color: var(--muted-color); white-space: nowrap; }
   .entry-sub { font-size: 9pt; color: var(--muted-color); margin-top: 1px; }
   .summary { font-size: 10.5pt; margin: 0; }
-  .bullets { margin: 4px 0 0 0; padding-left: 16px; }
-  .bullets li { font-size: 10.5pt; margin-bottom: 2px; }
+  /* list-style: none — the bullet glyph is written as a literal "•" character
+     in the markup instead (see renderBullets in renderBody.js), so it
+     survives PDF text extraction, which a CSS ::marker does not. */
+  .bullets { margin: 4px 0 0 0; padding-left: 16px; list-style: none; }
+  .bullets li { font-size: 10.5pt; margin-bottom: 2px; text-indent: -12px; padding-left: 12px; }
   .skills-line { font-size: 10.5pt; margin-bottom: 2px; }
   .skills-group { font-weight: 600; }
 `;

@@ -15,11 +15,18 @@ function formatScore(score) {
   return typeof score === "string" ? score : "";
 }
 
+// The bullet glyph is written as a literal character, not a CSS list-style
+// marker: Chrome's print-to-PDF doesn't put a native ::marker into the PDF's
+// extractable text layer, so a resume built and exported by this app has no
+// glyph for its own PDF importer (shared/import/parseResumeText.js) to
+// detect — every bullet degrades to a same-level "new entry" instead of
+// being attached to the one above it. A literal "•" survives PDF export the
+// same way any other text does.
 function renderBullets(bullets) {
   const items = (bullets || []).map(bulletText).filter((t) => t && t.trim());
   if (!items.length) return "";
   return `<ul class="bullets">${items
-    .map((t) => `<li>${escapeHtml(t)}</li>`)
+    .map((t) => `<li>• ${escapeHtml(t)}</li>`)
     .join("")}</ul>`;
 }
 
@@ -94,7 +101,7 @@ function renderAchievements(achievements) {
   return `
     <section class="section">
       <h2>Achievements</h2>
-      <ul class="bullets">${items.map((a) => `<li>${escapeHtml(a.text)}</li>`).join("")}</ul>
+      <ul class="bullets">${items.map((a) => `<li>• ${escapeHtml(a.text)}</li>`).join("")}</ul>
     </section>`;
 }
 
