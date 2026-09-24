@@ -48,20 +48,21 @@ flowchart LR
     B -->|/api same origin| API[Express API]
     API --> Q[Export queue]
     Q --> W[PDF worker<br/>Puppeteer]
+    API -.-> GH[GitHub API<br/>public repos, read-only]
     API --> R[(Redis<br/>rate limit, cache)]
     API --> DB[(Postgres)]
     API -.-> LLM[LLM adapter<br/>optional, off]
 ```
 
-The browser owns editing state and runs all JD analysis itself, so Analyse costs nothing and works offline. The API owns PDF export, resume import and (later) accounts. Postgres, Redis and the separate worker arrive in Phase 4; until then, the API runs Puppeteer in-process behind the same interfaces. Dashed boxes stay switched off until they are needed.
+The browser owns editing state and runs all JD analysis itself, so Analyse costs nothing and works offline. The API owns PDF export, resume import, GitHub repo fetching, and (later) accounts. Postgres, Redis and the separate worker arrive in Phase 4; until then, the API runs Puppeteer in-process behind the same interfaces. Dashed boxes stay switched off until they are needed (GitHub is switched off only in the sense that nothing calls it until the user enters a username).
 
 | Component | Responsibility | Never does |
 | --- | --- | --- |
 | Frontend (React + Zustand) | Form editing, live preview, bullet tips, project form, local persistence | Call GitHub or any LLM directly; hold secrets |
 | `packages/templates` | `renderResumeHTML(resumeData, templateId)` + template CSS + embedded fonts | Access the network or DOM APIs |
 | `packages/schema` | Zod schema for `resumeData`, versions and migrations, shared by frontend and backend | Contain business logic |
-| `packages/text` (analysis engine) | Skill dictionary, JD parsing, match score, keyword gap, eligibility checks, bullet checks, project bullet templates; runs in browser and server | Call any external API |
-| Express API | Validation, rate limiting, PDF export, resume import, (later) auth | Render PDFs in-process (after Phase 4) |
+| `packages/text` (analysis engine) | Skill dictionary, JD parsing, match score, keyword gap, eligibility checks, bullet checks, project bullet templates, JD-vs-repo scoring; runs in browser and server | Call any external API |
+| Express API | Validation, rate limiting, PDF export, resume import, GitHub repo fetching, (later) auth | Render PDFs in-process (after Phase 4); write to GitHub |
 | ATS validator | Rules on content and on text extracted from the final PDF | Block download (warnings only) |
 | PDF worker | Headless Chrome, JS off, network off, queued with a concurrency cap | Store PDFs |
 | LLM adapter (optional, off) | Bullet tailoring, resume import mapping, with fabrication guard | Run unless `AI_ENABLED=true` |
@@ -96,12 +97,12 @@ ai-resume-builder/
 │       └── api/client.js
 ├── backend/
 │   └── src/
-│       ├── routes/        # health, export, import, (later) auth, resumes, github
+│       ├── routes/        # health, export, import, github, (later) auth, resumes
 │       ├── services/
 │       │   ├── atsValidator.js
 │       │   ├── pdf/       # renderer.js, queue.js, browserPool.js
-│       │   ├── resumeImport.js
-│       │   └── githubService.js   # optional, later
+│       │   ├── pdfImport.js
+│       │   └── githubRepos.js
 │       ├── llm/           # OPTIONAL, off by default
 │       │   ├── adapter.js, models.js, usage.js
 │       │   ├── fabricationGuard.js
@@ -186,6 +187,7 @@ In the no-AI setup, `suggestion` stays empty and `accepted` stays `"original"`; 
 | jds | id, user_id, jd_hash, raw_text, parsed (JSONB), created_at | Parsed once, reused |
 | analyses | id, resume_id, jd_id, resume_hash, score, report (JSONB), created_at | History of scores |
 | llm_usage | id, user_id, touchpoint, model, input_tokens, output_tokens, cost_inr, created_at | Cost tracking and limits (only if AI is enabled) |
+| github_links | user_id, username, connected_at | Remembers a signed-in user's GitHub username so they don't retype it each visit; username only, no tokens stored. The import feature itself (Section 9.4) doesn't need this table — it works today, signed out, by asking for the username each time |
 
 ## 6. Core user workflows
 
@@ -374,9 +376,17 @@ Rules: templates never add words that change meaning (no "scalable", "high-perfo
 
 **Decision (Sept 2026): dropped, not building.** The generic per-bullet Tailor button (Section 6.4) already covers AI rewriting for any bullet, project bullets included, when `AI_ENABLED=true`. A project-specific variant would have duplicated that with no real gain, so it isn't on the roadmap.
 
-### 9.4 Descoped: GitHub import
+### 9.4 Import from GitHub, ranked against the JD
 
-**Decision (Sept 2026): dropped, not building.** The design below is kept for the record in case this is revisited, not as a live plan. It would have pre-filled the project form from a public repo (name, description, manifest-derived tech stack) with no OAuth, one GitHub token of the server's own, and Redis caching per username — real infrastructure for a narrow win, traded away deliberately rather than left half-built. The project form's tech-stack autocomplete and template bullets (Section 9.1–9.2) stand on their own without it.
+**Revised design (Sept 2026).** The original plan here — a plain "pull in my repo's name and tech stack" autocomplete — was dropped: for a student with only a couple of projects, it saves typing but doesn't change what goes on the resume. What replaced it does: the student pastes a JD (which they're already doing for Analyse), and their GitHub repos are ranked by how well each one's tech stack matches that specific JD, so someone with many repos sees which ones are actually worth featuring for *this* application rather than reusing the same fixed project list every time. Still no LLM, no API key, no OAuth.
+
+1. The user enters a GitHub username. `backend/src/services/githubRepos.js` fetches their public, non-fork repos (capped at 12, most recently updated first) via GitHub's plain REST API — no user token needed for public data.
+2. For each repo, tech stack comes from its manifest file first (`package.json`, `requirements.txt`, `go.mod` — read in that order, first one found wins) mapped through the skill dictionary, then falls back to the repo's GitHub-reported languages if no manifest is found or parseable. `pom.xml`/`build.gradle` aren't parsed (XML/DSL, not a quick key list) — a Maven/Gradle repo still gets a techStack from its languages alone.
+3. `shared/text/repoScore.js` — pure, no network — scores each repo against the same `parsedJD` used for the résumé's own match score: required skills count double, preferred once, identical weighting logic to `scoreResume()`, just aimed at one repo's tech stack instead of a whole résumé.
+4. The ranked list shows each repo's score and *why* it matched ("React, MongoDB — both required"), with a checkbox per repo — nothing is imported until the user picks and clicks Import, same review-before-save posture as PDF import.
+5. An imported repo pre-fills Title, Tech used, and Link (mapped to canonical skill names, matching the rest of the project form). The student still answers Problem, Role and Result themselves, then generates bullets the same way as any manually-entered project (Section 9.2).
+
+**Rate limit:** unauthenticated GitHub API access is 60 requests/hour, and fetching one repo costs 2 calls (manifest + languages) on top of the initial listing call — enough for a handful of imports before hitting it. `GITHUB_SERVER_TOKEN` (any scope-less PAT) raises that to 5,000/hour; it's optional, the feature works without it, just with a lower ceiling. No Redis caching layer for this first version — worth adding once there's enough traffic to justify it, not before.
 
 ## 10. Accounts, persistence and sync (Phase 4)
 
@@ -449,6 +459,7 @@ SESSION_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 PUPPETEER_EXECUTABLE_PATH=
+GITHUB_SERVER_TOKEN=        # optional; raises the GitHub import rate limit from 60/hr to 5,000/hr
 
 # Optional AI layer: leave AI_ENABLED=false
 AI_ENABLED=false
@@ -521,7 +532,7 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 - [x] `projectBullets.js` template engine, with drafts shown as editable text
 - [x] Project form fields are part of schema v2; existing v1 projects migrate with an empty form and their bullets kept as they are
 - ~~"Polish with AI" on generated drafts (section 9.3)~~ — **descoped (Sept 2026)**, see section 9.3
-- ~~"Import from GitHub" (section 9.4)~~ — **descoped (Sept 2026)**, see section 9.4
+- [x] Import from GitHub, revised to rank repos against the pasted JD instead of a plain autocomplete (section 9.4) — no LLM, reuses the JD-parsing and skill-matching engine already built for résumé scoring
 
 Phase 3 is done: every planned item is either shipped or explicitly dropped.
 
@@ -537,7 +548,7 @@ Phase 3 is done: every planned item is either shipped or explicitly dropped.
 
 ### Phase 5 — Growth (after launch)
 
-More templates, DOCX export, resume sharing links, and placement-cell features such as batch review for a class. The optional AI layer (bullet tailoring, smarter import) comes last, once there is budget or a suitable free tier. GitHub import and AI polish for project bullets were considered for this phase and dropped (Sept 2026, sections 9.3–9.4) rather than deferred — revisit only if a real need for either resurfaces.
+More templates, DOCX export, resume sharing links, and placement-cell features such as batch review for a class. The optional AI layer (bullet tailoring, smarter import) comes last, once there is budget or a suitable free tier. AI polish for project bullets was considered and dropped (Sept 2026, section 9.3) — the generic Tailor button already covers it. GitHub import (section 9.4) moved up into Phase 3 instead, revised into JD-ranked repo import.
 
 ## 15. Open decisions
 

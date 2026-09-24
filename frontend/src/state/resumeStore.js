@@ -125,6 +125,31 @@ export const useResumeStore = create(
           },
         })),
 
+      // Used by "Import from GitHub" — merges the fetched repo's fields
+      // over a blank project so anything it didn't provide (Problem, Role,
+      // Result — everything the student still has to answer by hand) comes
+      // out as an ordinary empty field, not undefined.
+      addProjectFromImport: ({ title, link, techStack, description }) =>
+        set((s) => {
+          const base = STARTER.projects();
+          return {
+            resumeData: {
+              ...s.resumeData,
+              projects: [
+                ...s.resumeData.projects,
+                {
+                  ...base,
+                  title,
+                  link,
+                  techStack,
+                  source: "github",
+                  form: { ...base.form, built: description || "" },
+                },
+              ],
+            },
+          };
+        }),
+
       updateItem: (section, id, field, value) =>
         set((s) => mapItem(s, section, id, (item) => ({ ...item, [field]: value }))),
 

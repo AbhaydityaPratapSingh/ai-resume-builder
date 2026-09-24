@@ -53,6 +53,15 @@ export async function importResumePDF(file) {
   return res.json();
 }
 
+export async function fetchGithubRepos(username) {
+  const res = await fetch(`/api/github/repos/${encodeURIComponent(username)}`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error || `Could not fetch repos (${res.status})`);
+  }
+  return res.json();
+}
+
 export const analyzeKeywordGap = (resumeData, jdText) =>
   post("/api/llm/keyword-gap", { resumeData, jdText });
 

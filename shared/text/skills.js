@@ -58,7 +58,7 @@ export const SKILLS = [
   // Databases
   { id: "mysql", name: "MySQL", group: "Databases", aliases: ["mysql"] },
   { id: "postgresql", name: "PostgreSQL", group: "Databases", aliases: ["postgresql", "postgres"] },
-  { id: "mongodb", name: "MongoDB", group: "Databases", aliases: ["mongodb", "mongo"] },
+  { id: "mongodb", name: "MongoDB", group: "Databases", aliases: ["mongodb", "mongo", "mongoose"] },
   { id: "sqlite", name: "SQLite", group: "Databases", aliases: ["sqlite"] },
   { id: "redis", name: "Redis", group: "Databases", aliases: ["redis"] },
   { id: "cassandra", name: "Cassandra", group: "Databases", aliases: ["cassandra"] },

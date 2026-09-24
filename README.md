@@ -27,6 +27,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
   feature) with tech-stack autocomplete — answer what applies and get 2–3
   draft bullets generated from templates, no AI needed; every word in a
   draft traces to what you typed
+- Import projects from GitHub, ranked by how well each repo matches the
+  pasted JD — no LLM, same rule-based skill matching as the match score
 - Optional per-bullet AI rewrite with accept / revert — the original is never
   overwritten
 - Rules-based ATS validation before every export
@@ -161,12 +163,11 @@ and wired into the builder. Still open from 2.5: growing the skill
 dictionary and JD test set past the SDE-only starting scope, and the
 post-render PDF text checks (Section 8.3).
 
-Phase 3 is done: the structured project form and the `projectBullets.js`
-template engine that turns it into draft bullets. A project-specific
-"Polish with AI" flow and "Import from GitHub" were both considered and
-dropped rather than deferred (see ARCHITECTURE.md sections 9.3–9.4) — the
-existing Tailor button already covers AI rewriting generically, and GitHub
-import was real infrastructure for a narrow win. See the roadmap in the
+Phase 3 is done: the structured project form, the `projectBullets.js`
+template engine, and importing projects from GitHub ranked against the
+pasted JD (see below). A project-specific "Polish with AI" flow was
+considered and dropped (ARCHITECTURE.md section 9.3) — the existing Tailor
+button already covers AI rewriting generically. See the roadmap in the
 architecture doc.
 
 ## Resume import from PDF
@@ -181,3 +182,22 @@ is unchecked rather than silently imported. Entry-level splitting depends on
 the source PDF's bullets carrying a literal glyph (•, -, *, etc.) — true for
 essentially every Word/LaTeX/Canva export, but a resume with no bullet
 glyphs at all degrades to one entry per line rather than guessing wrong.
+
+## Import projects from GitHub, ranked against the JD
+
+In the project form, "Import from GitHub" takes a username, fetches their
+public non-fork repos, and ranks them by how well each one's tech stack
+matches the JD you pasted above — the same skill-overlap scoring the match
+score uses, aimed at one repo instead of your whole resume. No LLM, no API
+key, no OAuth: tech stack comes from a repo's manifest file
+(`package.json`, `requirements.txt`, `go.mod`) mapped through the skill
+dictionary, falling back to GitHub's own reported languages. You see why
+each repo matched ("React, MongoDB — both required"), pick which ones to
+import with a checkbox, and nothing is added until you do. An imported repo
+pre-fills Title, Tech and Link — you still answer Problem, Role and Result
+yourself before generating bullets.
+
+Unauthenticated GitHub API access is 60 requests/hour, enough for a handful
+of imports. Set `GITHUB_SERVER_TOKEN` in `backend/.env` (any plain PAT, no
+scopes needed) to raise that to 5,000/hour — optional, the feature works
+without it.

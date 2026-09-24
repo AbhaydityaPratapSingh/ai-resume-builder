@@ -23,6 +23,7 @@ export { SKILLS, findSkill } from "./text/skills.js";
 export { matchSkills } from "./text/matcher.js";
 export { parseJD } from "./text/parseJD.js";
 export { scoreResume, parseScoreValue } from "./text/score.js";
+export { scoreRepoAgainstJD, rankRepos } from "./text/repoScore.js";
 export { checkBullet, jdAwareTip, ACTION_VERBS } from "./text/bulletChecks.js";
 export { generateProjectBullets } from "./text/projectBullets.js";
 export { parseResumeText } from "./import/parseResumeText.js";

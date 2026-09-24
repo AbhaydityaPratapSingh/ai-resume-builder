@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { SKILLS, generateProjectBullets } from "@resume-maker/shared";
 import { useResumeStore } from "../../../state/resumeStore.js";
 import { Button, EmptyHint, FormSection, ItemCard, TextArea, TextInput } from "../../shared/ui.jsx";
 import BulletList from "./BulletList.jsx";
+import GithubImportPanel from "./GithubImportPanel.jsx";
 
 const SKILL_DATALIST_ID = "project-skill-options";
 
@@ -12,6 +14,8 @@ export default function Projects() {
   const updateProjectForm = useResumeStore((s) => s.updateProjectForm);
   const removeItem = useResumeStore((s) => s.removeItem);
   const appendBullets = useResumeStore((s) => s.appendBullets);
+
+  const [showGithubImport, setShowGithubImport] = useState(false);
 
   function handleGenerate(item) {
     const drafts = generateProjectBullets(item.form, item.techStack);
@@ -34,6 +38,14 @@ export default function Projects() {
           <option key={s.id} value={s.name} />
         ))}
       </datalist>
+
+      {showGithubImport ? (
+        <GithubImportPanel onClose={() => setShowGithubImport(false)} />
+      ) : (
+        <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => setShowGithubImport(true)}>
+          Import from GitHub
+        </Button>
+      )}
 
       {projects.map((item) => {
         const canGenerate = Boolean(item.form.built || item.form.role || item.form.result || item.form.keyFeature);
