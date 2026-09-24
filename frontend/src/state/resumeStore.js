@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
   emptyResume,
+  emptyProjectForm,
   makeId,
   makeBullet,
   migrateResumeData,
@@ -32,10 +33,13 @@ const STARTER = {
   projects: () => ({
     id: makeId(),
     title: "",
-    source: "manual",
-    repoUrl: "",
+    source: "form",
+    link: "",
+    startDate: "",
+    endDate: "",
     techStack: [],
-    bullets: [makeBullet()],
+    form: emptyProjectForm(),
+    bullets: [],
   }),
   achievements: () => ({ id: makeId(), text: "" }),
   responsibilities: () => ({
@@ -183,6 +187,22 @@ export const useResumeStore = create(
             bullets: item.bullets.filter((b) => b.id !== bulletId),
           }))
         ),
+
+      // Appends generated draft bullets after whatever's already there,
+      // skipping exact-text duplicates, so re-running "Generate bullets"
+      // after editing the form never destroys a bullet the student already
+      // hand-edited or removed a match from.
+      appendBullets: (section, id, texts) =>
+        set((s) =>
+          mapItem(s, section, id, (item) => {
+            const existing = new Set(item.bullets.map((b) => b.original));
+            const additions = texts.filter((t) => !existing.has(t)).map((t) => makeBullet(t));
+            return { ...item, bullets: [...item.bullets, ...additions] };
+          })
+        ),
+
+      updateProjectForm: (id, field, value) =>
+        set((s) => mapItem(s, "projects", id, (item) => ({ ...item, form: { ...item.form, [field]: value } }))),
 
       setTemplate: (templateId) =>
         set((s) => ({

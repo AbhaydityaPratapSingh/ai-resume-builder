@@ -23,7 +23,10 @@ function renderBullets(bullets) {
     .join("")}</ul>`;
 }
 
+// No start date means nothing was entered — never render a bare "Present"
+// for an item the user gave no dates for at all.
 function renderDateRange(start, end) {
+  if (!start) return "";
   const range = joinNonEmpty([start, end || "Present"], " – ");
   return range ? `<span class="dates">${range}</span>` : "";
 }
@@ -125,11 +128,16 @@ function renderProjects(projects) {
     <section class="section">
       <h2>Projects</h2>
       ${items
-        .map(
-          (p) => `
+        .map((p) => {
+          const linkHref = safeUrl(p.link);
+          const titleLine = linkHref
+            ? `<a href="${escapeHtml(linkHref)}">${escapeHtml(p.title)}</a>`
+            : escapeHtml(p.title);
+          return `
         <div class="entry">
           <div class="entry-head">
-            <span class="entry-title">${escapeHtml(p.title)}</span>
+            <span class="entry-title">${titleLine}</span>
+            ${renderDateRange(p.startDate, p.endDate)}
           </div>
           ${
             p.techStack && p.techStack.filter(Boolean).length
@@ -137,8 +145,8 @@ function renderProjects(projects) {
               : ""
           }
           ${renderBullets(p.bullets)}
-        </div>`
-        )
+        </div>`;
+        })
         .join("")}
     </section>`;
 }

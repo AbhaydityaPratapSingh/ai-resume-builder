@@ -1,4 +1,4 @@
-import { makeBullet, makeId } from "../data/emptyResume.js";
+import { makeBullet, makeId, emptyProjectForm } from "../data/emptyResume.js";
 
 // This is the rule-based half of PDF import (ARCHITECTURE.md section 6.1).
 // It never touches a network or a file — it takes the plain text a PDF
@@ -256,8 +256,11 @@ export function parseResumeText(rawText) {
     }),
     projects: parseWithBullets(sections.projects, "title", {
       source: "import",
-      repoUrl: "",
+      link: "",
+      startDate: "",
+      endDate: "",
       techStack: [],
+      form: emptyProjectForm(),
     }),
     education: parseEducation(sections.education),
     skills: parseSkills(sections.skills),

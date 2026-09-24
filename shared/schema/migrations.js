@@ -1,4 +1,4 @@
-import { SCHEMA_VERSION, SECTION_KEYS, makeBullet, makeId } from "../data/emptyResume.js";
+import { SCHEMA_VERSION, SECTION_KEYS, makeBullet, makeId, emptyProjectForm } from "../data/emptyResume.js";
 
 const LINK_KEYS = ["linkedin", "github", "portfolio"];
 
@@ -99,6 +99,21 @@ export function normalizeResumeData(data) {
       .filter((i) => i && typeof i === "object")
       .map((i) => ({ ...i, id: i.id || makeId() }));
 
+  // Projects gained a structured form, a link (renamed from the never-
+  // rendered repoUrl) and dates after the first v2 release.
+  const projects = withBullets(data.projects).map((p) => {
+    const { repoUrl, ...rest } = p;
+    return {
+      source: "form",
+      startDate: "",
+      endDate: "",
+      ...rest,
+      link: rest.link || repoUrl || "",
+      techStack: Array.isArray(rest.techStack) ? rest.techStack.filter(Boolean) : [],
+      form: { ...emptyProjectForm(), ...(rest.form || {}) },
+    };
+  });
+
   // Indian placement fields added after the first v2 release: default
   // to "" rather than assuming a level, so the form shows an empty
   // selector instead of silently guessing B.Tech for older data.
@@ -131,7 +146,7 @@ export function normalizeResumeData(data) {
     personal: { ...personal, links },
     summary: typeof data.summary === "string" ? data.summary : "",
     experience: withBullets(data.experience),
-    projects: withBullets(data.projects),
+    projects,
     education,
     skills: normalizeSkills(data.skills),
     achievements,

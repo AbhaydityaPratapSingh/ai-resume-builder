@@ -4,6 +4,7 @@ export {
   makeBullet,
   bulletText,
   hasPendingSuggestion,
+  emptyProjectForm,
   SCHEMA_VERSION,
   SECTION_KEYS,
   EDUCATION_LEVELS,
@@ -22,5 +23,6 @@ export { SKILLS, findSkill } from "./text/skills.js";
 export { matchSkills } from "./text/matcher.js";
 export { parseJD } from "./text/parseJD.js";
 export { scoreResume, parseScoreValue } from "./text/score.js";
-export { checkBullet, jdAwareTip } from "./text/bulletChecks.js";
+export { checkBullet, jdAwareTip, ACTION_VERBS } from "./text/bulletChecks.js";
+export { generateProjectBullets } from "./text/projectBullets.js";
 export { parseResumeText } from "./import/parseResumeText.js";

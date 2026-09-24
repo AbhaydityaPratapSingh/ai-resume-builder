@@ -66,4 +66,41 @@ describe("normalizeResumeData", () => {
     expect(r.responsibilities).toEqual([]);
     expect(r.layout.sectionOrder).toEqual(SECTION_KEYS);
   });
+
+  it("renames a project's legacy repoUrl to link, and fills the structured form", () => {
+    const old = {
+      schemaVersion: 2,
+      projects: [{ id: "p1", title: "Tracker", repoUrl: "github.com/a/tracker", techStack: ["React", ""] }],
+    };
+    const result = normalizeResumeData(old);
+    expect(result.projects[0].link).toBe("github.com/a/tracker");
+    expect(result.projects[0].repoUrl).toBeUndefined();
+    expect(result.projects[0].techStack).toEqual(["React"]);
+    expect(result.projects[0].form).toEqual({
+      problem: "",
+      built: "",
+      role: "",
+      result: "",
+      keyFeature: "",
+      teamSize: null,
+    });
+  });
+
+  it("keeps an already-structured project form and link intact", () => {
+    const old = {
+      schemaVersion: 2,
+      projects: [
+        {
+          id: "p1",
+          title: "Tracker",
+          link: "github.com/a/tracker",
+          form: { problem: "X", built: "", role: "", result: "", keyFeature: "", teamSize: 2 },
+        },
+      ],
+    };
+    const result = normalizeResumeData(old);
+    expect(result.projects[0].link).toBe("github.com/a/tracker");
+    expect(result.projects[0].form.problem).toBe("X");
+    expect(result.projects[0].form.teamSize).toBe(2);
+  });
 });

@@ -90,3 +90,46 @@ describe("renderResumeBodyHTML — Indian placement fields", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 });
+
+describe("renderResumeBodyHTML — projects", () => {
+  it("renders a project's link, dates and tech stack", () => {
+    const html = renderResumeBodyHTML(
+      resumeWith({
+        projects: [
+          {
+            id: "p1",
+            title: "Placement Tracker",
+            link: "github.com/a/tracker",
+            startDate: "Jan 2026",
+            endDate: "Mar 2026",
+            techStack: ["React", "Node.js"],
+            bullets: [makeBullet("Tracked 40 companies.")],
+          },
+        ],
+      })
+    );
+    expect(html).toContain('href="https://github.com/a/tracker"');
+    expect(html).toContain("Placement Tracker");
+    expect(html).toContain("Jan 2026");
+    expect(html).toContain("React");
+  });
+
+  it("never shows a bare 'Present' when no start date was entered", () => {
+    const html = renderResumeBodyHTML(
+      resumeWith({
+        projects: [{ id: "p1", title: "Solo project", bullets: [makeBullet("Built it.")] }],
+      })
+    );
+    expect(html).not.toContain("Present");
+  });
+
+  it("never shows a bare 'Present' for experience or education with no start date", () => {
+    const html = renderResumeBodyHTML(
+      resumeWith({
+        experience: [{ id: "e1", role: "Intern", company: "Acme", bullets: [makeBullet("Did work.")] }],
+        education: [{ id: "ed1", institution: "VIT" }],
+      })
+    );
+    expect(html).not.toContain("Present");
+  });
+});

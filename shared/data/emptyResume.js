@@ -48,6 +48,13 @@ export function hasPendingSuggestion(bullet) {
   return Boolean(bullet?.suggestion) && bullet.accepted !== "suggestion";
 }
 
+// The structured project form (ARCHITECTURE.md section 9.1) that
+// projectBullets.js turns into draft bullets. teamSize is a number or null,
+// never a string, so it can't silently mismatch "1" !== 1 in a form control.
+export function emptyProjectForm() {
+  return { problem: "", built: "", role: "", result: "", keyFeature: "", teamSize: null };
+}
+
 export function emptyResume() {
   return {
     schemaVersion: SCHEMA_VERSION,

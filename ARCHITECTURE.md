@@ -532,11 +532,13 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 
 ### Phase 3 — Project form and template bullets (1–2 weeks)
 
-- [ ] Structured project form with tech autocomplete from the skill dictionary
-- [ ] `projectBullets.js` template engine, with drafts shown as editable text
-- [ ] Project form fields are part of schema v2; existing v1 projects migrate with an empty form and their bullets kept as they are
+- [x] Structured project form with tech autocomplete from the skill dictionary
+- [x] `projectBullets.js` template engine, with drafts shown as editable text
+- [x] Project form fields are part of schema v2; existing v1 projects migrate with an empty form and their bullets kept as they are
+- [ ] "Polish with AI" on generated drafts (section 9.3) — the existing per-bullet Tailor button already covers this generically when `AI_ENABLED=true`; a project-specific polish flow is still open
+- [ ] "Import from GitHub" (section 9.4) — explicitly scoped as optional/later in the doc; not started
 
-**Exit test:** a student with no GitHub account can add a project and get 2–3 usable bullets in under 2 minutes; every word in a draft traces to a form answer or a fixed template word.
+**Exit test:** a student with no GitHub account can add a project and get 2–3 usable bullets in under 2 minutes; every word in a draft traces to a form answer or a fixed template word — enforced by a dedicated test in `tests/projects/projectBullets.test.js` that tokenizes every generated draft and asserts every word traces to the form/tech input or a small fixed vocabulary.
 
 ### Phase 4 — Accounts and scale (3–4 weeks)
 

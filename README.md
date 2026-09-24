@@ -23,6 +23,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
 - Indian placement fields: Class X/XII vs. degree level, structured
   CGPA/percentage with eligibility checks, branch/board, achievements,
   positions of responsibility, LeetCode/CodeChef/Codeforces links
+- Structured project form (problem, what you built, role, result, key
+  feature) with tech-stack autocomplete — answer what applies and get 2–3
+  draft bullets generated from templates, no AI needed; every word in a
+  draft traces to what you typed
 - Optional per-bullet AI rewrite with accept / revert — the original is never
   overwritten
 - Rules-based ATS validation before every export
@@ -153,9 +157,15 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 Phases 1, 2 and 2.1 are done. Phase 2.5 is functionally complete: the
 analysis engine (skill dictionary, JD parser, scoring, bullet tips), Indian
 placement fields, and rule-based PDF import with a review screen are all in
-and wired into the builder. Still open: growing the skill dictionary and JD
-test set past the SDE-only starting scope, and Phase 2.5's post-render PDF
-text checks (Section 8.3). See the roadmap in the architecture doc.
+and wired into the builder. Still open from 2.5: growing the skill
+dictionary and JD test set past the SDE-only starting scope, and the
+post-render PDF text checks (Section 8.3).
+
+Phase 3's core is done too: the structured project form and the
+`projectBullets.js` template engine that turns it into draft bullets. Still
+open from Phase 3: a project-specific "Polish with AI" flow, and "Import
+from GitHub" (both explicitly scoped as optional/later in the architecture
+doc). See the roadmap in the architecture doc.
 
 ## Resume import from PDF
 

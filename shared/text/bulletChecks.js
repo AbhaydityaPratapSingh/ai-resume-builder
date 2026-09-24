@@ -13,7 +13,7 @@ const WEAK_OPENERS = [
   "tasked with",
 ];
 
-const ACTION_VERBS = [
+export const ACTION_VERBS = [
   "built", "designed", "developed", "implemented", "created", "led", "reduced",
   "improved", "increased", "automated", "optimized", "launched", "architected",
   "deployed", "wrote", "refactored", "integrated", "migrated", "scaled",
