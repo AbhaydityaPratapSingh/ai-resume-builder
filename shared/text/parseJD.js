@@ -81,6 +81,37 @@ const BRANCH_PATTERNS = [
 // written the way the abbreviation actually is, "IT" — never "it" or "It".
 const BARE_IT_RE = /\bIT\b/;
 
+// A JD can name specific disciplines only to illustrate that it doesn't
+// care which one a candidate studied ("we don't shortlist based on
+// branch... whether you studied Computer Science, Electronics, or
+// something entirely different") — found via a real posting where that
+// exact phrasing still matched cse/ece from the disciplines it named.
+//
+// The check only clears a branch match if EVERY occurrence of that
+// branch's name sits within BRANCH_AGNOSTIC_WINDOW characters of an
+// openness phrase. A single posting covering multiple roles with
+// different policies ("Sales: open to all branches. SDE: CSE/IT/ECE
+// only.") keeps its real, far-away restriction — proximity is what tells
+// "this mention is part of the openness statement" apart from "this
+// mention is an unrelated restriction elsewhere in the same document."
+const BRANCH_AGNOSTIC_RE = /\b(any branch|any discipline|all branches|open to all branches|regardless of branch|branch[\s-]agnostic|don'?t shortlist based on branch)\b/gi;
+const BRANCH_AGNOSTIC_WINDOW = 150;
+
+function isNearAnyMatch(index, matches, window) {
+  return matches.some((m) => Math.abs(m.index - index) <= window);
+}
+
+// True only if every occurrence of `pattern` in jdText sits near an
+// openness-phrase occurrence — i.e. the branch name never appears as a
+// standalone restriction anywhere in the document.
+function allOccurrencesNearAgnosticPhrase(jdText, pattern, agnosticMatches) {
+  if (!agnosticMatches.length) return false;
+  const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  const occurrences = [...jdText.matchAll(global)];
+  if (!occurrences.length) return false;
+  return occurrences.every((occ) => isNearAnyMatch(occ.index, agnosticMatches, BRANCH_AGNOSTIC_WINDOW));
+}
+
 function extractEligibility(jdText) {
   const eligibility = {};
 
@@ -113,16 +144,22 @@ function extractEligibility(jdText) {
     jdText.match(/(20\d{2})[^.\n]{0,20}?(?:batch|graduat\w*|passing out|passout)/i);
   if (yearMatch) eligibility.gradYear = parseInt(yearMatch[1], 10);
 
-  const branches = BRANCH_PATTERNS.filter((b) => b.pattern.test(jdText)).map((b) => b.id);
-  if (BARE_IT_RE.test(jdText) && !branches.includes("cse")) branches.push("cse");
-  // A JD can name specific disciplines only to illustrate that it doesn't
-  // care which one a candidate studied — found via a real posting that
-  // said "we don't shortlist based on branch... whether you studied
-  // Computer Science, Electronics, or something entirely different" and
-  // still matched cse/ece from those very names. An explicit
-  // branch-agnostic phrase anywhere overrides any branch names matched.
-  const branchAgnostic = /\b(any branch|any discipline|all branches|open to all branches|regardless of branch|branch[\s-]agnostic|don'?t shortlist based on branch)\b/i;
-  if (branches.length && !branchAgnostic.test(jdText)) eligibility.branches = branches;
+  const agnosticMatches = [...jdText.matchAll(BRANCH_AGNOSTIC_RE)];
+
+  const branches = BRANCH_PATTERNS.filter((b) => {
+    if (!b.pattern.test(jdText)) return false;
+    return !allOccurrencesNearAgnosticPhrase(jdText, b.pattern, agnosticMatches);
+  }).map((b) => b.id);
+
+  if (
+    BARE_IT_RE.test(jdText) &&
+    !branches.includes("cse") &&
+    !allOccurrencesNearAgnosticPhrase(jdText, BARE_IT_RE, agnosticMatches)
+  ) {
+    branches.push("cse");
+  }
+
+  if (branches.length) eligibility.branches = branches;
 
   return eligibility;
 }

@@ -1082,6 +1082,21 @@ describe("eligibility extraction fixes found via real JDs", () => {
     const parsed = parseJD("Eligible branches: Computer Science, Electronics.");
     expect(parsed.eligibility.branches).toEqual(["cse", "ece"]);
   });
+
+  it("a branch-agnostic phrase for one role doesn't clear a real restriction stated for another, far-away role", () => {
+    const parsed = parseJD(`
+We are hiring for two roles.
+
+Sales roles: open to any branch. We don't shortlist based on academic background for sales positions.
+
+Meanwhile, for our engineering team, eligibility is stricter and technical.
+
+SDE roles:
+- Branches eligible: Computer Science, Electronics, ECE only
+- CGPA 7.5 or above
+    `);
+    expect(parsed.eligibility.branches).toEqual(["cse", "ece"]);
+  });
 });
 
 describe("parseJD recall", () => {
