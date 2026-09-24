@@ -277,3 +277,50 @@ Systems, Machine Learning.
     expect(draft.education[0].degree).toContain("Database Management Systems, Machine Learning.");
   });
 });
+
+describe("parseResumeText — bullet glyph extracted on its own line", () => {
+  const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+PROJECTS
+Placement Tracker - React, Node.js
+•
+Tracked applications across 40 companies for 300 students.
+•
+Deployed on AWS with Docker.
+Study Buddy - Flutter
+•Built a peer-matching app.
+
+ACHIEVEMENTS
+•
+Winner, Smart India Hackathon 2025
+•
+Finalist, national coding contest 2024
+  `);
+
+  it("attaches the text after a glyph-only line as a bullet of the right project", () => {
+    expect(draft.projects.map((p) => p.title)).toEqual([
+      "Placement Tracker - React, Node.js",
+      "Study Buddy - Flutter",
+    ]);
+    expect(draft.projects[0].bullets.map(bulletText)).toEqual([
+      "Tracked applications across 40 companies for 300 students.",
+      "Deployed on AWS with Docker.",
+    ]);
+    expect(draft.projects[1].bullets.map(bulletText)).toEqual(["Built a peer-matching app."]);
+  });
+
+  it("never leaves a stray glyph in titles or achievements", () => {
+    expect(draft.achievements.map((a) => a.text)).toEqual([
+      "Winner, Smart India Hackathon 2025",
+      "Finalist, national coding contest 2024",
+    ]);
+    for (const p of draft.projects) expect(p.title).not.toContain("•");
+  });
+
+  it("doesn't treat a leading hyphen without a space as a bullet", () => {
+    const d = parseResumeText("Name\nx@example.com\n\nACHIEVEMENTS\n-5% churn after redesign");
+    expect(d.achievements[0].text).toBe("-5% churn after redesign");
+  });
+});

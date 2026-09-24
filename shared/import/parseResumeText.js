@@ -76,10 +76,32 @@ function extractContact(lines) {
   return { name: name.trim(), email, phone, links };
 }
 
-const BULLET_RE = /^[•\-*●◦▪‣]\s+/;
+// "-" and "*" need trailing whitespace ("-5%" is not a bullet); the dedicated
+// glyphs don't, since PDF extraction often drops the space ("•Built ...").
+const BULLET_RE = /^(?:[-*]\s+|[•●◦▪‣]\s*)/;
+const GLYPH_ONLY_RE = /^[•\-*●◦▪‣]$/;
 
 function stripBullet(line) {
   return line.replace(BULLET_RE, "").trim();
+}
+
+// PDF extraction frequently puts a bullet glyph on its own line with the
+// bullet's text on the next one; rejoin them so the glyph isn't lost.
+function joinOrphanGlyphs(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (GLYPH_ONLY_RE.test(lines[i])) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j]) j++;
+      if (j < lines.length && !GLYPH_ONLY_RE.test(lines[j])) {
+        out.push(`${lines[i]} ${lines[j]}`);
+        i = j;
+      }
+      continue;
+    }
+    out.push(lines[i]);
+  }
+  return out;
 }
 
 // A PDF-extracted bullet whose sentence is too long for one line wraps
@@ -320,7 +342,7 @@ function parseSkills(lines) {
  * up in one bucket for the user to redistribute on the review screen.
  */
 export function parseResumeText(rawText) {
-  const allLines = (rawText || "").split(/\r?\n/).map((l) => l.trim());
+  const allLines = joinOrphanGlyphs((rawText || "").split(/\r?\n/).map((l) => l.trim()));
 
   const firstHeadingIndex = allLines.findIndex((l) => classifyHeading(l));
   const headerLines = firstHeadingIndex === -1 ? allLines : allLines.slice(0, firstHeadingIndex);
