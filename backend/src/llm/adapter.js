@@ -1,25 +1,24 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { bulletText } from "@resume-maker/shared";
 
-import * as keywordGap from "../prompts/keywordGap.js";
-import * as bulletTailor from "../prompts/bulletTailor.js";
-import * as matchScore from "../prompts/matchScore.js";
+import * as keywordGap from "./prompts/keywordGap.js";
+import * as bulletTailor from "./prompts/bulletTailor.js";
+import * as matchScore from "./prompts/matchScore.js";
+import { MODELS } from "./models.js";
+import { apiKey } from "../config.js";
 
 // Touchpoints that rewrite user-authored content carry the fabrication risk, so
 // they run on the stronger model; read-only analysis runs on the cheap one.
-const STRONG_MODEL = "claude-opus-5";
-const FAST_MODEL = "claude-haiku-4-5";
+const STRONG_MODEL = MODELS.strong;
+const FAST_MODEL = MODELS.fast;
 
 let client = null;
 
 function getClient() {
-  if (!client) client = new Anthropic();
+  if (!client) client = new Anthropic({ apiKey: apiKey() });
   return client;
-}
-
-export function isConfigured() {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
 export function resumeToPlainText(resumeData) {
@@ -34,7 +33,10 @@ export function resumeToPlainText(resumeData) {
     lines.push("\nEXPERIENCE");
     for (const e of experience) {
       lines.push(`${e.role || ""} at ${e.company || ""} (${e.startDate || ""} - ${e.endDate || "Present"})`);
-      for (const b of e.bullets || []) if (b) lines.push(`- ${b}`);
+      for (const b of e.bullets || []) {
+        const text = bulletText(b);
+        if (text) lines.push(`- ${text}`);
+      }
     }
   }
 
@@ -43,7 +45,10 @@ export function resumeToPlainText(resumeData) {
     lines.push("\nPROJECTS");
     for (const proj of projects) {
       lines.push(`${proj.title}${proj.techStack?.length ? ` [${proj.techStack.join(", ")}]` : ""}`);
-      for (const b of proj.bullets || []) if (b) lines.push(`- ${b}`);
+      for (const b of proj.bullets || []) {
+        const text = bulletText(b);
+        if (text) lines.push(`- ${text}`);
+      }
     }
   }
 
@@ -55,8 +60,15 @@ export function resumeToPlainText(resumeData) {
     }
   }
 
-  const skills = (resumeData.skills || []).filter(Boolean);
-  if (skills.length) lines.push(`\nSKILLS\n${skills.join(", ")}`);
+  const skillGroups = (resumeData.skills || []).filter(
+    (g) => g.items?.filter(Boolean).length
+  );
+  if (skillGroups.length) {
+    lines.push("\nSKILLS");
+    for (const g of skillGroups) {
+      lines.push(`${g.group ? `${g.group}: ` : ""}${g.items.join(", ")}`);
+    }
+  }
 
   const certs = (resumeData.certifications || []).filter((c) => c.name);
   if (certs.length) {

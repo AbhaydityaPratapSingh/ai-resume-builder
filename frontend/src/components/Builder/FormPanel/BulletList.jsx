@@ -54,21 +54,17 @@ export default function BulletList({ section, item, context }) {
               }
             />
             <div className="flex shrink-0 flex-col gap-1">
-              <Button
-                variant="secondary"
-                className="px-2 py-1 text-xs whitespace-nowrap"
-                disabled={!canTailor || busyId === bullet.id || !bullet.original.trim()}
-                title={
-                  aiEnabled
-                    ? jdText?.trim()
-                      ? "Suggest a rewrite against the JD"
-                      : "Paste a JD first"
-                    : "Backend has no ANTHROPIC_API_KEY"
-                }
-                onClick={() => handleTailor(bullet)}
-              >
-                {busyId === bullet.id ? "..." : "Tailor"}
-              </Button>
+              {aiEnabled ? (
+                <Button
+                  variant="secondary"
+                  className="px-2 py-1 text-xs whitespace-nowrap"
+                  disabled={!canTailor || busyId === bullet.id || !bullet.original.trim()}
+                  title={jdText?.trim() ? "Suggest a rewrite against the JD" : "Paste a JD first"}
+                  onClick={() => handleTailor(bullet)}
+                >
+                  {busyId === bullet.id ? "..." : "Tailor"}
+                </Button>
+              ) : null}
               {item.bullets.length > 1 ? (
                 <Button
                   variant="danger"

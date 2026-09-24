@@ -1,34 +1,11 @@
 import { Router } from "express";
-import * as llm from "../services/llmService.js";
+import * as llm from "../llm/adapter.js";
+import { rateLimit } from "../middleware/rateLimit.js";
+import { requireAI } from "../middleware/requireAI.js";
 
 const router = Router();
 
-const WINDOW_MS = 60_000;
-const MAX_CALLS_PER_WINDOW = 15;
-const callLog = new Map();
-
-function rateLimit(req, res, next) {
-  const key = req.ip;
-  const now = Date.now();
-  const recent = (callLog.get(key) || []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_CALLS_PER_WINDOW) {
-    return res.status(429).json({ error: "Too many AI requests. Wait a minute and try again." });
-  }
-  recent.push(now);
-  callLog.set(key, recent);
-  next();
-}
-
-function requireConfigured(req, res, next) {
-  if (!llm.isConfigured()) {
-    return res.status(503).json({
-      error: "ANTHROPIC_API_KEY is not set on the backend — AI features are disabled.",
-    });
-  }
-  next();
-}
-
-router.use(rateLimit, requireConfigured);
+router.use(rateLimit, requireAI);
 
 function handleError(res, err, label) {
   console.error(`${label} failed:`, err);

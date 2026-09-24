@@ -44,14 +44,15 @@ export default function JDInput() {
         <h3 className="text-sm font-semibold tracking-wide text-slate-900 uppercase">
           Target job description
         </h3>
-        <Button
-          onClick={handleAnalyze}
-          disabled={busy || !aiEnabled || !jdText.trim()}
-          className="px-3 py-1.5 text-xs"
-          title={aiEnabled ? undefined : "Backend has no ANTHROPIC_API_KEY"}
-        >
-          {busy ? "Analysing..." : isStale ? "Re-run Analyse" : "Analyse"}
-        </Button>
+        {aiEnabled ? (
+          <Button
+            onClick={handleAnalyze}
+            disabled={busy || !jdText.trim()}
+            className="px-3 py-1.5 text-xs"
+          >
+            {busy ? "Analysing..." : isStale ? "Re-run Analyse" : "Analyse"}
+          </Button>
+        ) : null}
       </div>
 
       <TextArea
@@ -62,9 +63,10 @@ export default function JDInput() {
       />
 
       {!aiEnabled ? (
-        <p className="text-xs text-amber-600">
-          AI features are off — set ANTHROPIC_API_KEY in backend/.env and restart the
-          backend.
+        <p className="text-xs text-slate-500">
+          Saved with your resume. Rule-based JD matching — score, missing skills and
+          eligibility — is the next thing being built; it will run here with no API key
+          needed.
         </p>
       ) : null}
       {error ? <p className="text-xs text-red-500">{error}</p> : null}
