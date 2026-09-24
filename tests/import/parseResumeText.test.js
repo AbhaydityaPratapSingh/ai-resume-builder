@@ -324,3 +324,43 @@ Finalist, national coding contest 2024
     expect(d.achievements[0].text).toBe("-5% churn after redesign");
   });
 });
+
+// Shapes taken from a real pdf-parse extraction of a LaTeX resume: location
+// and dates glued onto the previous text with no space, degree sharing a
+// line with the CGPA, and a skills line wrapped after a trailing comma.
+describe("parseResumeText — real pdf-parse education/skills shapes", () => {
+  const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+Education
+VIT Institute of TechnologyVellore, TN
+B.Tech, Computer Science and Engineering (AI); CGPA: 8.35/10.0Expected May 2027
+•
+Relevant Coursework:Operating Systems, Computer Networks
+Technical Skills
+Languages:  C++, Python, SQL
+CS Fundamentals:  Data Structures & Algorithms, Operating Systems,
+Databases, Machine Learning
+  `);
+
+  it("keeps the degree that shares a line with the CGPA, and extracts score and date", () => {
+    const edu = draft.education;
+    expect(edu).toHaveLength(1);
+    expect(edu[0].institution).toBe("VIT Institute of Technology, Vellore, TN");
+    expect(edu[0].degree).toContain("B.Tech, Computer Science and Engineering (AI)");
+    expect(edu[0].degree).toContain("Relevant Coursework:Operating Systems");
+    expect(edu[0].degree).not.toMatch(/CGPA|8\.35|Expected/);
+    expect(edu[0].score).toEqual({ type: "cgpa", value: 8.35, outOf: 10 });
+    expect(edu[0].endDate).toBe("May 2027");
+  });
+
+  it("merges a skills line wrapped after a trailing comma into its group", () => {
+    expect(draft.skills.map((g) => g.group)).toEqual(["Languages", "CS Fundamentals"]);
+    expect(draft.skills[1].items).toEqual([
+      "Data Structures & Algorithms",
+      "Operating Systems",
+      "Databases",
+      "Machine Learning",
+    ]);
+  });
+});
