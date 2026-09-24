@@ -149,3 +149,107 @@ Wrote unit tests
     expect(languages.items).toEqual(["Java", "Python"]);
   });
 });
+
+// A real bug: PDF text extraction wraps a long bullet sentence across two
+// lines with no marker on the continuation line — indistinguishable, by
+// glyph alone, from a brand-new entry's header. Before this fix, every
+// wrapped continuation became its own fake entry, so a resume with 2-3 real
+// projects could come back reporting dozens of "projects" — reported
+// against a real PDF resume (see shared/import/parseResumeText.js).
+describe("parseResumeText — wrapped-line continuations don't fragment into fake entries", () => {
+  it("merges a bullet whose sentence wraps across two lines into one bullet, one project", () => {
+    const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+PROJECTS
+Placement Tracker - React, Node.js, MongoDB
+- Tracked applications across 40 companies for 300 students and sent automated
+reminders before every deadline.
+- Deployed on AWS with Docker and CI/CD via GitHub Actions, cutting release time
+by half.
+    `);
+    expect(draft.projects).toHaveLength(1);
+    expect(draft.projects[0].title).toBe("Placement Tracker - React, Node.js, MongoDB");
+    expect(draft.projects[0].bullets).toHaveLength(2);
+    expect(bulletText(draft.projects[0].bullets[0])).toBe(
+      "Tracked applications across 40 companies for 300 students and sent automated reminders before every deadline."
+    );
+    expect(bulletText(draft.projects[0].bullets[1])).toBe(
+      "Deployed on AWS with Docker and CI/CD via GitHub Actions, cutting release time by half."
+    );
+  });
+
+  it("merges a lone punctuation fragment left over from a wrap, instead of making it its own entry", () => {
+    const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+PROJECTS
+Tracker
+- Built a system for tracking things across many teams and departments in the
+org
+.
+    `);
+    expect(draft.projects).toHaveLength(1);
+    expect(bulletText(draft.projects[0].bullets[0])).toBe(
+      "Built a system for tracking things across many teams and departments in the org."
+    );
+  });
+
+  it("merges a wrapped achievement into one item instead of two", () => {
+    const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+ACHIEVEMENTS
+- Winner, Smart India Hackathon 2025, selected among 4000 teams across the
+country for the final round
+- Finalist, national coding contest 2024
+    `);
+    expect(draft.achievements).toHaveLength(2);
+    expect(draft.achievements[0].text).toBe(
+      "Winner, Smart India Hackathon 2025, selected among 4000 teams across the country for the final round"
+    );
+    expect(draft.achievements[1].text).toBe("Finalist, national coding contest 2024");
+  });
+
+  it("still starts a new entry when a completed sentence is followed by a genuinely new header", () => {
+    const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+PROJECTS
+First Project
+- Did the first thing well.
+Second Project
+- Did the second thing too.
+    `);
+    expect(draft.projects).toHaveLength(2);
+    expect(draft.projects[0].title).toBe("First Project");
+    expect(draft.projects[1].title).toBe("Second Project");
+  });
+
+  it("does not fragment a resume with several real, unrelated wrapped bullets across projects", () => {
+    const draft = parseResumeText(`
+Aditi Sharma
+aditi@example.com
+
+PROJECTS
+Placement Tracker - React, Node.js, MongoDB
+- Tracked applications across 40 companies for 300 students and sent automated
+reminders before every deadline.
+- Deployed on AWS with Docker and CI/CD via GitHub Actions, cutting release time
+by half.
+
+Study Buddy - Flutter, Firebase
+- Built a peer-matching app used by 200 students preparing for placement
+season together.
+- Added a real-time chat feature backed by Firebase, which cut response time
+for study groups significantly.
+    `);
+    expect(draft.projects).toHaveLength(2);
+    expect(draft.projects[0].bullets).toHaveLength(2);
+    expect(draft.projects[1].bullets).toHaveLength(2);
+  });
+});

@@ -82,23 +82,76 @@ function stripBullet(line) {
   return line.replace(BULLET_RE, "").trim();
 }
 
-// Groups a section's lines into { header, extra[] } entries: a line with no
-// bullet glyph starts a new entry, a bulleted line is appended to the
-// current one. Resumes whose bullets carry no glyph at all (some
-// browser-rendered PDFs) degrade to one entry per line — still visible and
-// editable on the review screen, never dropped.
+// A PDF-extracted bullet whose sentence is too long for one line wraps
+// across two lines with no marker at all on the continuation — the same
+// "no glyph" shape as a brand-new entry's header, which used to make every
+// wrapped continuation line look like its own fake entry (a 2-3 project
+// resume coming back as dozens of fragments). A non-bulleted line very
+// likely continues whatever text came before it, rather than starting a
+// new entry, when either that previous text was cut off mid-sentence (no
+// sentence-ending punctuation), or the new line is nothing but a stray
+// punctuation fragment left over from the wrap (a lone ".").
+//
+// This can't be perfect — a real one-line bullet that just happens to
+// carry no trailing period looks identical to a wrapped fragment — but a
+// wrapped continuation is by far the more common real-world case, and a
+// merged-too-eagerly entry is still visible and editable on the review
+// screen, same as every other best-effort guess in this file.
+const TINY_FRAGMENT_RE = /^[.,;:!?)\]'"-]{1,3}$/;
+const SENTENCE_END_RE = /[.!?]["')\]]*$/;
+
+function isContinuationLine(prevText, line) {
+  if (TINY_FRAGMENT_RE.test(line)) return true;
+  return Boolean(prevText) && !SENTENCE_END_RE.test(prevText.trim());
+}
+
+function mergeContinuation(text, line) {
+  return TINY_FRAGMENT_RE.test(line) ? text + line : `${text} ${line}`;
+}
+
+// Groups a section's lines into { header, extra[] } entries: a bulleted
+// line is appended to the current entry as a new bullet; a non-bulleted
+// line either continues whatever was just added (see isContinuationLine)
+// or starts a new entry. Resumes whose bullets carry no glyph at all (some
+// browser-rendered PDFs) degrade toward merging everything into fewer,
+// run-on entries — still visible and editable on the review screen, never
+// silently dropped.
 function splitEntries(lines) {
   const entries = [];
   let current = null;
+  let lastText = null;
+
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
-    if (BULLET_RE.test(line) && current) {
-      current.extra.push(stripBullet(line));
-    } else {
-      current = { header: line, extra: [] };
-      entries.push(current);
+
+    if (BULLET_RE.test(line)) {
+      const text = stripBullet(line);
+      if (!current) {
+        current = { header: text, extra: [] };
+        entries.push(current);
+      } else {
+        current.extra.push(text);
+      }
+      lastText = text;
+      continue;
     }
+
+    if (current && isContinuationLine(lastText, line)) {
+      if (current.extra.length) {
+        const i = current.extra.length - 1;
+        current.extra[i] = mergeContinuation(current.extra[i], line);
+        lastText = current.extra[i];
+      } else {
+        current.header = mergeContinuation(current.header, line);
+        lastText = current.header;
+      }
+      continue;
+    }
+
+    current = { header: line, extra: [] };
+    entries.push(current);
+    lastText = line;
   }
   return entries;
 }
@@ -121,21 +174,27 @@ const DEGREE_LINE_RE = /\b(b\.?\s?tech|b\.?\s?e|m\.?\s?tech|m\.?\s?e|bachelor|ma
 // Education entries rarely use a bullet glyph for the degree/score line
 // under an institution — "VIT Pune" / "CGPA: 8.6/10" is a very common
 // two-line shape with nothing marking the second line as a continuation.
-// So here, unlike other sections, a line continues the current entry
-// when it looks like a score or a degree name; anything else starts a new
-// entry (almost always the next institution).
+// So here, unlike other sections, a line continues the current entry when
+// it looks like a score or a degree name, OR when it looks like a wrapped
+// continuation of the line above it (isContinuationLine, same rationale as
+// splitEntries above); anything else starts a new entry (almost always the
+// next institution).
 function splitEducationEntries(lines) {
   const entries = [];
   let current = null;
+  let lastText = null;
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
-    const continues = current && (CGPA_RE.test(line) || PERCENT_RE.test(line) || DEGREE_LINE_RE.test(line));
+    const looksLikeScoreOrDegree = CGPA_RE.test(line) || PERCENT_RE.test(line) || DEGREE_LINE_RE.test(line);
+    const continues = current && (looksLikeScoreOrDegree || isContinuationLine(lastText, line));
     if (continues) {
       current.extra.push(line);
+      lastText = line;
     } else {
       current = { header: line, extra: [] };
       entries.push(current);
+      lastText = line;
     }
   }
   return entries;
@@ -181,11 +240,34 @@ function parseCertifications(lines) {
   }));
 }
 
+// A bulleted line always starts a new achievement (that's what the glyph
+// marks); a non-bulleted line either continues a wrapped achievement above
+// it or, on the first line of the section, starts one — same
+// isContinuationLine heuristic as splitEntries, applied here because this
+// section previously had no merging logic at all: every line, wrapped or
+// not, became its own fake achievement.
 function parseAchievements(lines) {
-  return lines
-    .map(stripBullet)
-    .filter(Boolean)
-    .map((text) => ({ id: makeId(), text }));
+  const items = [];
+  let lastText = null;
+
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const isBulleted = BULLET_RE.test(trimmed);
+    const text = stripBullet(trimmed);
+    if (!text) continue;
+
+    if (!isBulleted && items.length && isContinuationLine(lastText, text)) {
+      const i = items.length - 1;
+      items[i] = mergeContinuation(items[i], text);
+      lastText = items[i];
+    } else {
+      items.push(text);
+      lastText = text;
+    }
+  }
+
+  return items.map((text) => ({ id: makeId(), text }));
 }
 
 const SKILL_GROUP_LINE_RE = /^([A-Za-z][\w /&-]{1,30}):\s*(.+)$/;
