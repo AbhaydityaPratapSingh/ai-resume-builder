@@ -50,7 +50,12 @@ const MIGRATIONS = { 1: v1ToV2 };
 
 export function migrateResumeData(data, fromVersion) {
   if (!data) return data;
-  let version = fromVersion ?? data.schemaVersion ?? 1;
+  // schemaVersion only exists from v2 on. Anything without it predates
+  // versioning and is v1 — including data zustand reports as version 0,
+  // which is what the shipped v1 store wrote (its persist config set no
+  // version). Trusting fromVersion alone would skip the migration and hand
+  // v1 shapes to v2 components.
+  let version = data.schemaVersion ?? 1;
   let result = data;
   while (version < SCHEMA_VERSION) {
     const migrate = MIGRATIONS[version];
