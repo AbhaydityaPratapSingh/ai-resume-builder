@@ -17,6 +17,20 @@ export async function getHealth() {
   return res.json();
 }
 
+// Decodes the post-render ATS report the backend attaches as a response
+// header (base64 JSON — headers must be ISO-8859-1-safe, see
+// backend/src/routes/export.js). Returns { warnings: [], info: [] } if the
+// header is missing or unreadable, never throws.
+function decodePostRenderReport(res) {
+  const raw = res.headers.get("X-Ats-Post-Render");
+  if (!raw) return { warnings: [], info: [] };
+  try {
+    return JSON.parse(atob(raw));
+  } catch {
+    return { warnings: [], info: [] };
+  }
+}
+
 export async function downloadPDF(resumeData, templateId) {
   const res = await fetch("/api/export/pdf", {
     method: "POST",
@@ -27,6 +41,7 @@ export async function downloadPDF(resumeData, templateId) {
     const detail = await res.json().catch(() => ({}));
     throw new Error(detail.error || "PDF export failed");
   }
+  const postRenderReport = decodePostRenderReport(res);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -36,6 +51,7 @@ export async function downloadPDF(resumeData, templateId) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  return postRenderReport;
 }
 
 export const validateATS = (resumeData) => post("/api/export/validate", { resumeData });

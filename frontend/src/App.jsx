@@ -88,8 +88,18 @@ function Header() {
     setBusy(true);
     setError(null);
     try {
-      setAtsReport(await validateATS(resumeData));
-      await downloadPDF(resumeData, resumeData.layout.templateId);
+      const preReport = await validateATS(resumeData);
+      setAtsReport(preReport);
+      // Post-render checks look at the actual PDF bytes (section order,
+      // extractable name/email, page count) — a different, later signal
+      // than the pre-render content rules above, so the two reports are
+      // merged rather than one replacing the other.
+      const postReport = await downloadPDF(resumeData, resumeData.layout.templateId);
+      setAtsReport({
+        ok: preReport.ok && postReport.warnings.length === 0,
+        warnings: [...preReport.warnings, ...postReport.warnings],
+        info: [...preReport.info, ...postReport.info],
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -128,6 +138,14 @@ function Header() {
           >
             {atsReport.warnings.length} ATS warning
             {atsReport.warnings.length > 1 ? "s" : ""}
+          </span>
+        ) : null}
+        {atsReport?.info?.length ? (
+          <span
+            className="cursor-help text-xs text-slate-400"
+            title={atsReport.info.map((i) => i.message).join("\n")}
+          >
+            {atsReport.info.length} note{atsReport.info.length > 1 ? "s" : ""}
           </span>
         ) : null}
         {error ? <span className="text-xs text-red-500">{error}</span> : null}

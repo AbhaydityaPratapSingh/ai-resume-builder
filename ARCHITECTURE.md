@@ -321,7 +321,7 @@ The validator runs in two stages and never blocks the download.
 
 **Before render (content rules):** name, email and phone present; phone matches Indian or international format; at least one education and one skills entry; bullet length 60–220 characters; dates in order; no pending (unreviewed) suggestions left; non-ASCII outside an allowlist (₹, –, —, accented letters, Indian scripts in the name) shown as an info note, not a warning.
 
-**After render (PDF checks):** extract text with `pdf-parse`; confirm section headings appear in the expected order; confirm name and email are extractable; count pages and warn if a fresher resume exceeds one page.
+**After render (PDF checks, `backend/src/services/postRenderCheck.js`):** extract text with `pdf-parse`; confirm section headings appear in the same order the renderer itself produced them (a mismatch means Puppeteer/CSS/page breaks reordered something, not that the input was wrong — the expected order comes from parsing the renderer's own `<h2>` output, not from re-deriving it); confirm name and email are extractable; add an info note (not a warning — page count alone isn't wrong) when the PDF is more than one page. Attached to the `/api/export/pdf` response as a base64 `X-Ats-Post-Render` header (HTTP headers are ISO-8859-1, so raw JSON isn't safe there) and merged into the same report the pre-render checks populate.
 
 Template-level rules (single column, no tables, no images, real text) are enforced by automated tests on every template at build time, not at runtime.
 
@@ -522,7 +522,8 @@ Fix what exists first (Phase 2.1), then deepen analysis (Phase 2.5) before build
 - [x] Scoring engine, keyword gap, eligibility checks, suggested section order
 - [x] Bullet checks and JD-aware tips
 - [x] Resume import from PDF (rule-based, with review screen) — entry-level splitting depends on the source PDF's bullets carrying a glyph (•, -, etc.); resumes without one degrade to one entry per line, still reviewable, never dropped
-- [ ] Post-render PDF text checks; analysis test set with 30 JDs — 8 labelled JDs in `tests/analysis/` so far, recall asserted ≥90%; grow toward 30 as real JDs are collected
+- [x] Post-render PDF text checks (section 8.3): name/email extractable, section-heading order matches the renderer's own output, page-count info note — attached to the PDF response as a header, merged into the same ATS report the pre-render checks already show
+- [ ] Analysis test set grown to 30 JDs — 8 labelled JDs in `tests/analysis/` so far, recall asserted ≥90%; grow toward 30 as real JDs are collected
 
 **Exit test:** the same resume and JD give the same score every time; parser recall is at least 90% on required skills in the test set.
 

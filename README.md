@@ -31,7 +31,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full target design.
   pasted JD — no LLM, same rule-based skill matching as the match score
 - Optional per-bullet AI rewrite with accept / revert — the original is never
   overwritten
-- Rules-based ATS validation before every export
+- Rules-based ATS validation before every export, plus a second pass on the
+  actual rendered PDF (name/email extractable, section order intact)
 - PDF export via Puppeteer
 - JSON backup and restore; resume data persists in `localStorage`
 
@@ -158,10 +159,10 @@ Both model ids in `backend/src/llm/models.js` are unverified against a live API.
 
 Phases 1, 2 and 2.1 are done. Phase 2.5 is functionally complete: the
 analysis engine (skill dictionary, JD parser, scoring, bullet tips), Indian
-placement fields, and rule-based PDF import with a review screen are all in
-and wired into the builder. Still open from 2.5: growing the skill
-dictionary and JD test set past the SDE-only starting scope, and the
-post-render PDF text checks (Section 8.3).
+placement fields, rule-based PDF import with a review screen, and
+post-render PDF checks are all in and wired into the builder. Still open
+from 2.5: growing the skill dictionary and JD test set past the SDE-only
+starting scope.
 
 Phase 3 is done: the structured project form, the `projectBullets.js`
 template engine, and importing projects from GitHub ranked against the

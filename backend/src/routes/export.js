@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { renderResumePDF, QueueFullError } from "../services/pdfRenderer.js";
 import { validateForATS } from "../services/atsValidator.js";
+import { checkRenderedPDF } from "../services/postRenderCheck.js";
 
 const router = Router();
 
@@ -30,11 +31,26 @@ router.post("/pdf", async (req, res) => {
       resumeData,
       templateId || resumeData.layout?.templateId
     );
+
+    // Never let a bug in the post-render check itself block a download the
+    // student is actively waiting on.
+    const postRenderReport = await checkRenderedPDF(resumeData, pdf).catch((err) => {
+      console.error("Post-render PDF check failed:", err);
+      return { warnings: [], info: [] };
+    });
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${safeFilename(resumeData.personal?.name)}"`
     );
+    // HTTP headers are ISO-8859-1; base64 keeps this safe regardless of
+    // what characters end up in a warning message.
+    res.setHeader(
+      "X-Ats-Post-Render",
+      Buffer.from(JSON.stringify(postRenderReport)).toString("base64")
+    );
+    res.setHeader("Access-Control-Expose-Headers", "X-Ats-Post-Render");
     res.send(Buffer.from(pdf));
   } catch (err) {
     if (err instanceof QueueFullError) {
