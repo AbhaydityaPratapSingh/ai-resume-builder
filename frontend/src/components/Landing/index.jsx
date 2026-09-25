@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { TEMPLATES } from "@resume-maker/shared";
 import { useResumeStore } from "../../state/resumeStore.js";
 import { useAppStore } from "../../state/appStore.js";
+import { BEST_FOR } from "../../data/templateInfo.js";
 import BuildSteps from "./BuildSteps.jsx";
 import Hero3D from "./Hero3D.jsx";
 import KeywordCloud from "./KeywordCloud.jsx";
@@ -46,11 +47,6 @@ const FEATURES = [
     body: "Rendered from the same template as your live preview, so what you see is what you get.",
   },
 ];
-
-const BEST_FOR = {
-  classic: ["Most campus placement drives", "Service companies, banks and analyst roles"],
-  modern: ["Product companies and startups", "SDE roles where a cleaner look stands out"],
-};
 
 const FAQ = [
   {

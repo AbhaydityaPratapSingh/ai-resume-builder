@@ -183,6 +183,21 @@
   opacity: 1;
 }
 
+/* ---- Template gallery: staggered entrance ---- */
+.gallery-rise {
+  animation: gallery-rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+@keyframes gallery-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tilt,
   .hero3d-scene,
@@ -194,6 +209,9 @@
   .dial3d-chip,
   .dial3d-bar {
     transition: none;
+  }
+  .gallery-rise {
+    animation: none;
   }
   .tilt {
     transform: none;
