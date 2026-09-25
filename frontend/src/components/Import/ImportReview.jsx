@@ -76,6 +76,7 @@ export default function ImportReview() {
     name: draft?.personal?.name || "",
     email: draft?.personal?.email || "",
     phone: draft?.personal?.phone || "",
+    location: draft?.personal?.location || "",
   }));
   const [summary, setSummary] = useState(draft?.summary || "");
   const [kept, setKept] = useState(() => {
