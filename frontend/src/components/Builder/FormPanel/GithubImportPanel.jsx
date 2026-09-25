@@ -13,6 +13,22 @@ function canonicalTechStack(rawTechStack) {
   return [...ids].map((id) => findSkill(id)?.name).filter(Boolean);
 }
 
+// Picks the banner to show above a ranked repo list, or null for none. Kept
+// as a pure function (rather than inline JSX conditionals) so the three
+// outcomes — no JD, JD with no skills to match, JD with skills but no repo
+// hit any of them — can be unit tested directly, same as the rest of this
+// app's rule-based logic.
+export function describeMatchOutcome(jdText, ranked) {
+  if (!jdText?.trim() || !ranked?.length) return null;
+  if (ranked.every((entry) => entry.match === null)) {
+    return "Couldn't find any required or preferred skills in that JD to match against — showing your repos unranked.";
+  }
+  if (ranked.every((entry) => (entry.match?.score ?? 0) === 0)) {
+    return "None of your repos match skills from this JD. You can still import one below and fill in the rest yourself.";
+  }
+  return null;
+}
+
 function RepoRow({ entry, checked, onToggle }) {
   const { repo, match } = entry;
   return (
@@ -84,6 +100,8 @@ export default function GithubImportPanel({ onClose }) {
     onClose();
   }
 
+  const matchOutcome = ranked ? describeMatchOutcome(jdText, ranked) : null;
+
   return (
     <div className="rounded-lg border border-slate-300 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -116,6 +134,11 @@ export default function GithubImportPanel({ onClose }) {
       {ranked ? (
         ranked.length ? (
           <>
+            {matchOutcome ? (
+              <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
+                {matchOutcome}
+              </p>
+            ) : null}
             <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
               {ranked.map((entry) => (
                 <RepoRow

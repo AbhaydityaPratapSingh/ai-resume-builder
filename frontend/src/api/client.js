@@ -69,6 +69,19 @@ export async function importResumePDF(file) {
   return res.json();
 }
 
+export async function importJDPDF(file) {
+  const res = await fetch("/api/import/jd-pdf", {
+    method: "POST",
+    headers: { "Content-Type": file.type || "application/pdf" },
+    body: file,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error || `Import failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function fetchGithubRepos(username) {
   const res = await fetch(`/api/github/repos/${encodeURIComponent(username)}`);
   if (!res.ok) {
