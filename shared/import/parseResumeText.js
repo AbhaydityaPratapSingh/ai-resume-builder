@@ -37,7 +37,7 @@ for (const [key, names] of Object.entries(HEADINGS)) {
 }
 
 function classifyHeading(line) {
-  const cleaned = line.trim().toLowerCase().replace(/[:.\s]+$/, "");
+  const cleaned = line.trim().toLowerCase().replace(/\s+/g, " ").replace(/[:.\s]+$/, "");
   if (!cleaned || cleaned.length > 40) return null;
   return HEADING_LOOKUP.get(cleaned) || null;
 }
@@ -54,6 +54,17 @@ const LINK_DOMAINS = [
   { type: "portfolio", pattern: /\b[\w-]+\.(?:dev|me|xyz|vercel\.app|netlify\.app|github\.io)\b[\w/.-]*/i },
 ];
 
+const HANDLE_PATTERNS = [
+  { type: "github", base: "github.com/", pattern: /\bgithub\b\s*(?:username|id)?\s*[:\-]?\s*@?([A-Za-z0-9][A-Za-z0-9-]*)(?![.\w/])/i },
+  {
+    type: "linkedin",
+    base: "linkedin.com/in/",
+    pattern: /\blinked\s*in\b\s*(?:username|id|profile)?\s*[:\-]?\s*@?([A-Za-z0-9][A-Za-z0-9-]*)(?![.\w/])/i,
+  },
+];
+
+const LOCATION_SEGMENT_RE = /^[A-Z][A-Za-z. ]{1,30}\s*,\s*[A-Z][A-Za-z. ]{1,30}$/;
+
 function extractContact(lines) {
   const text = lines.join(" ");
   const email = text.match(EMAIL_RE)?.[0] || "";
@@ -68,12 +79,30 @@ function extractContact(lines) {
       seen.add(type);
     }
   }
+  // Many templates print only a handle next to a label or icon name:
+  // "Github @handle", "LinkedIn Username: handle".
+  for (const { type, pattern, base } of HANDLE_PATTERNS) {
+    const match = text.match(pattern);
+    if (match && !seen.has(type)) {
+      links.push({ type, url: `${base}${match[1]}` });
+      seen.add(type);
+    }
+  }
 
   // The name is almost always the first non-empty line of the document,
   // as long as it isn't itself the contact-info line.
   const name = lines.find((l) => l.trim() && !EMAIL_RE.test(l) && !l.includes("@")) || "";
 
-  return { name: name.trim(), email, phone, links };
+  // "Pune , Maharashtra | name@x.com | ..." — a "City, State" segment of the
+  // contact line with no digits, "@" or link text in it.
+  const location =
+    lines
+      .flatMap((l) => l.split("|"))
+      .map(collapseSpaces)
+      .find((s) => LOCATION_SEGMENT_RE.test(s) && !/linked\s*in|github/i.test(s))
+      ?.replace(/\s*,\s*/g, ", ") || "";
+
+  return { name: name.trim(), email, phone, location, links };
 }
 
 // "-" and "*" need trailing whitespace ("-5%" is not a bullet); the dedicated
@@ -104,44 +133,66 @@ function joinOrphanGlyphs(lines) {
   return out;
 }
 
-// A PDF-extracted bullet whose sentence is too long for one line wraps
-// across two lines with no marker at all on the continuation — the same
-// "no glyph" shape as a brand-new entry's header, which used to make every
-// wrapped continuation line look like its own fake entry (a 2-3 project
-// resume coming back as dozens of fragments). A non-bulleted line very
-// likely continues whatever text came before it, rather than starting a
-// new entry, when either that previous text was cut off mid-sentence (no
-// sentence-ending punctuation), or the new line is nothing but a stray
-// punctuation fragment left over from the wrap (a lone ".").
-//
-// This can't be perfect — a real one-line bullet that just happens to
-// carry no trailing period looks identical to a wrapped fragment — but a
-// wrapped continuation is by far the more common real-world case, and a
-// merged-too-eagerly entry is still visible and editable on the review
-// screen, same as every other best-effort guess in this file.
+// The extractor (backend/src/services/pdfImport.js) marks a right-aligned
+// column — dates, a location — with a run of 3+ spaces.
+const COLUMN_GAP_RE = /\s{3,}/;
+
+function collapseSpaces(text) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function splitColumns(line) {
+  const m = line.match(COLUMN_GAP_RE);
+  if (!m) return { left: collapseSpaces(line), right: "" };
+  return {
+    left: collapseSpaces(line.slice(0, m.index)),
+    right: collapseSpaces(line.slice(m.index + m[0].length)),
+  };
+}
+
+// A long sentence wraps onto the next line with no marker, which looks just
+// like a new entry's first line. A line is treated as a wrap only when the
+// line above it was cut off mid-sentence AND either this line starts in
+// lowercase or the line above ran close to the full text width (a wrap
+// only happens at the margin). Missing punctuation alone isn't enough:
+// "CGPA: 9.78", "Percentage: 66%" and role/date lines never end in a period,
+// and treating those as unfinished merged whole sections into one entry.
+// A line with a right-aligned column is a header, never a wrap.
 const TINY_FRAGMENT_RE = /^[.,;:!?)\]'"-]{1,3}$/;
 const SENTENCE_END_RE = /[.!?]["')\]]*$/;
+const FULL_WIDTH_RATIO = 0.7;
 
-function isContinuationLine(prevText, line) {
-  if (TINY_FRAGMENT_RE.test(line)) return true;
-  return Boolean(prevText) && !SENTENCE_END_RE.test(prevText.trim());
+function makeWrapTest(lines) {
+  const widths = lines
+    .filter((l) => l.trim() && !COLUMN_GAP_RE.test(l.trim()))
+    .map((l) => collapseSpaces(stripBullet(l.trim())).length);
+  const maxWidth = widths.length ? Math.max(...widths) : 0;
+
+  return function isContinuationLine(prevLine, line) {
+    if (TINY_FRAGMENT_RE.test(line)) return true;
+    if (!prevLine || COLUMN_GAP_RE.test(prevLine) || COLUMN_GAP_RE.test(line)) return false;
+    if (SENTENCE_END_RE.test(prevLine.trim())) return false;
+    if (/^[a-z]/.test(line)) return true;
+    return collapseSpaces(prevLine).length >= maxWidth * FULL_WIDTH_RATIO;
+  };
 }
 
 function mergeContinuation(text, line) {
-  return TINY_FRAGMENT_RE.test(line) ? text + line : `${text} ${line}`;
+  return TINY_FRAGMENT_RE.test(line) ? text + line : `${text} ${collapseSpaces(line)}`;
 }
+
+// "Skills: Operations, Crowd Control" under a role describes that role; it
+// is never the next entry's title.
+const LABEL_LINE_RE = /^[A-Z][A-Za-z &/]{1,25}:\s*\S/;
 
 // Groups a section's lines into { header, extra[] } entries: a bulleted
 // line is appended to the current entry as a new bullet; a non-bulleted
-// line either continues whatever was just added (see isContinuationLine)
-// or starts a new entry. Resumes whose bullets carry no glyph at all (some
-// browser-rendered PDFs) degrade toward merging everything into fewer,
-// run-on entries — still visible and editable on the review screen, never
-// silently dropped.
-function splitEntries(lines) {
+// line continues whatever was just added (isWrap), attaches as a detail
+// line (LABEL_LINE_RE), or starts a new entry.
+function splitEntries(lines, isWrap) {
   const entries = [];
   let current = null;
-  let lastText = null;
+  let lastLine = null;
 
   for (const raw of lines) {
     const line = raw.trim();
@@ -153,29 +204,96 @@ function splitEntries(lines) {
         current = { header: text, extra: [] };
         entries.push(current);
       } else {
-        current.extra.push(text);
+        current.extra.push(collapseSpaces(text));
       }
-      lastText = text;
+      lastLine = text;
       continue;
     }
 
-    if (current && isContinuationLine(lastText, line)) {
+    if (current && isWrap(lastLine, line)) {
       if (current.extra.length) {
         const i = current.extra.length - 1;
         current.extra[i] = mergeContinuation(current.extra[i], line);
-        lastText = current.extra[i];
       } else {
         current.header = mergeContinuation(current.header, line);
-        lastText = current.header;
       }
+      lastLine = line;
+      continue;
+    }
+
+    if (current && LABEL_LINE_RE.test(line) && !COLUMN_GAP_RE.test(line)) {
+      current.extra.push(collapseSpaces(line));
+      lastLine = line;
       continue;
     }
 
     current = { header: line, extra: [] };
     entries.push(current);
-    lastText = line;
+    lastLine = line;
   }
   return entries;
+}
+
+const MONTH_NAME = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?";
+const DATE_TOKEN = `(?:${MONTH_NAME}\\s+)?(?:19|20)\\d{2}|present|current|ongoing|now`;
+const DATE_RANGE_RE = new RegExp(
+  `^(?:expected\\s+)?(${DATE_TOKEN})(?:\\s*(?:–|—|-|to)\\s*(${DATE_TOKEN}))?(?:\\s*[·•|(].*)?$`,
+  "i"
+);
+const DURATION_ONLY_RE = /^(?:\d+\s*(?:years?|yrs?|months?|mos?)\s*)+$/i;
+
+function normalizeDate(token) {
+  return /^(present|current|ongoing|now)$/i.test(token) ? "Present" : token;
+}
+
+// Reads a right-hand column like "Aug 2023 – May 2027", "Expected 2027" or
+// "April 2025 – Present · 5 months". A lone date is an end date when
+// `singleIsEnd` (graduation), otherwise a start date.
+function parseDateColumn(text, singleIsEnd) {
+  const m = text.match(DATE_RANGE_RE);
+  if (!m) return null;
+  if (m[2]) return { startDate: normalizeDate(m[1]), endDate: normalizeDate(m[2]) };
+  return singleIsEnd
+    ? { startDate: "", endDate: normalizeDate(m[1]) }
+    : { startDate: normalizeDate(m[1]), endDate: "" };
+}
+
+function stripBrackets(text) {
+  return text.replace(/^\[(.*)\]$/, "$1");
+}
+
+// Splits an entry header into its title and right-column dates. A right
+// column that isn't a date (a location) stays in the title rather than
+// being dropped.
+function parseEntryHeader(header) {
+  const { left, right } = splitColumns(header);
+  if (!right) return { title: left, startDate: "", endDate: "" };
+  const dates = parseDateColumn(right, false);
+  if (dates) return { title: left, ...dates };
+  return { title: `${left}, ${stripBrackets(right)}`, startDate: "", endDate: "" };
+}
+
+function toBullets(extra) {
+  return extra.length ? extra.map((t) => makeBullet(t)) : [makeBullet()];
+}
+
+// LinkedIn's layout (often pasted straight into a resume) lists a company
+// once with its total tenure ("Aaruush, SRM University   2 years") and then
+// each role under it with its own dates. A header whose right column is only
+// a duration is that company line, so the roles below it inherit it.
+function parseExperience(lines, isWrap) {
+  const items = [];
+  let company = "";
+  for (const entry of splitEntries(lines, isWrap)) {
+    const { left, right } = splitColumns(entry.header);
+    if (right && DURATION_ONLY_RE.test(right) && !entry.extra.length) {
+      company = left;
+      continue;
+    }
+    const { title, startDate, endDate } = parseEntryHeader(entry.header);
+    items.push({ id: makeId(), role: title, company, startDate, endDate, bullets: toBullets(entry.extra) });
+  }
+  return items;
 }
 
 // Real resumes write this both ways — "8.6 CGPA" and "CGPA: 8.6/10" — so
@@ -183,15 +301,19 @@ function splitEntries(lines) {
 const CGPA_RE = /(?:cgpa\s*[:\-]?\s*(\d(?:\.\d{1,2})?)|(\d(?:\.\d{1,2})?)\s*(?:\/\s*10)?\s*cgpa)/i;
 const PERCENT_RE = /(\d{1,3}(?:\.\d{1,2})?)\s*%/;
 
+// "Percentage : 88.4" — labelled, but with no "%" sign.
+const LABELLED_PERCENT_RE = /percentage\s*[:\-]?\s*(\d{1,3}(?:\.\d{1,2})?)/i;
+
 function extractScore(text) {
   const cgpa = text.match(CGPA_RE);
   if (cgpa) return { type: "cgpa", value: parseFloat(cgpa[1] ?? cgpa[2]), outOf: 10 };
-  const pct = text.match(PERCENT_RE);
+  const pct = text.match(PERCENT_RE) || text.match(LABELLED_PERCENT_RE);
   if (pct) return { type: "percentage", value: parseFloat(pct[1]) };
   return null;
 }
 
-const DEGREE_LINE_RE = /\b(b\.?\s?tech|b\.?\s?e|m\.?\s?tech|m\.?\s?e|bachelor|master|diploma|class\s*x(?:ii)?|bsc|bca|msc|mca|phd)\b/i;
+const DEGREE_LINE_RE =
+  /\b(b\.?\s?tech|b\.?\s?e|m\.?\s?tech|m\.?\s?e|bachelor|master|diploma|class\s*(?:x(?:ii)?|10|12)\b|grade\s*(?:10|12|x|xii)\b|bsc|bca|msc|mca|phd)/i;
 
 // "Relevant Coursework: X, Y, Z" is a labeled sub-field of the institution
 // above it, not a new one — but isContinuationLine alone won't catch it: the
@@ -209,41 +331,45 @@ const LABELED_FIELD_RE = /^(relevant\s+)?course\s*work\s*:/i;
 // like a wrapped continuation of the line above it (isContinuationLine,
 // same rationale as splitEntries above); anything else starts a new entry
 // (almost always the next institution).
-function splitEducationEntries(lines) {
+function splitEducationEntries(lines, isWrap) {
   const entries = [];
   let current = null;
-  let lastText = null;
+  let lastLine = null;
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
     const line = stripBullet(trimmed);
     if (!line) continue;
+    // A school name that carries its own degree ("Delhi Public School, Grade
+    // 12, CBSE Board   March 2022") still starts a new entry.
+    const startsWithInstitution = /^[^,]*\b(school|college|institute|university|academy|vidyalaya)\b/i.test(line);
     const looksLikeScoreOrDegree =
       BULLET_RE.test(trimmed) ||
-      CGPA_RE.test(line) || PERCENT_RE.test(line) || DEGREE_LINE_RE.test(line) || LABELED_FIELD_RE.test(line);
+      CGPA_RE.test(line) ||
+      PERCENT_RE.test(line) ||
+      LABELLED_PERCENT_RE.test(line) ||
+      LABELED_FIELD_RE.test(line) ||
+      (DEGREE_LINE_RE.test(line) && !startsWithInstitution);
     // A genuinely new field (score/degree/labeled) is its own extra entry; a
     // plain wrap of the text just above it is the SAME field split by the
     // PDF's line break, so it merges into that entry's own text instead —
     // otherwise "...Database Management" + "Systems..." (one course name,
     // split mid-phrase) would rejoin with ", " and read as two courses.
-    const isWrap = current && !looksLikeScoreOrDegree && isContinuationLine(lastText, line);
+    const wraps = current && !looksLikeScoreOrDegree && isWrap(lastLine, line);
     if (looksLikeScoreOrDegree && current) {
       current.extra.push(line);
-      lastText = line;
-    } else if (isWrap) {
+    } else if (wraps) {
       if (current.extra.length) {
         const i = current.extra.length - 1;
         current.extra[i] = mergeContinuation(current.extra[i], line);
-        lastText = current.extra[i];
       } else {
         current.header = mergeContinuation(current.header, line);
-        lastText = current.header;
       }
     } else {
       current = { header: line, extra: [] };
       entries.push(current);
-      lastText = line;
     }
+    lastLine = line;
   }
   return entries;
 }
@@ -256,7 +382,7 @@ function splitEducationEntries(lines) {
 // a genuine score number sitting in the degree text is a visible, fixable
 // imperfection; silently deleting real content is not.
 const SCORE_TEXT_RE = new RegExp(
-  `(?:cgpa|gpa|percentage)\\s*[:\\-]?\\s*\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)?` +
+  `(?:(?:current|overall|cumulative)\\s+)?(?:cgpa|gpa|percentage)\\s*[:\\-]?\\s*\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)?` +
     `|\\d{1,3}(?:\\.\\d{1,2})?\\s*(?:%|\\/\\s*10(?:\\.0+)?)\\s*(?:cgpa|gpa|percentage)` +
     `|${CGPA_RE.source}`,
   "gi"
@@ -289,19 +415,48 @@ function splitGluedLocation(header) {
   return m ? `${m[1]}, ${m[2]}` : header;
 }
 
-function parseEducation(lines) {
-  return splitEducationEntries(lines).map((entry) => {
+// "SRM Institute, B.Tech in Computer Science" → the institution, and the
+// degree that shares its line.
+function splitInstitutionAndDegree(text) {
+  const parts = text.split(/\s*,\s*/);
+  const i = parts.findIndex((p, idx) => idx > 0 && DEGREE_LINE_RE.test(p));
+  if (i === -1) return { institution: text, degree: "" };
+  return { institution: parts.slice(0, i).join(", "), degree: parts.slice(i).join(", ") };
+}
+
+function parseEducation(lines, isWrap) {
+  return splitEducationEntries(lines, isWrap).map((entry) => {
     const allText = [entry.header, ...entry.extra].join(" ");
     const score = extractScore(entry.header) || extractScore(entry.extra.join(" "));
-    const degree = entry.extra.map(stripScoreAndDates).filter(Boolean).join(", ");
+
+    let dates = null;
+    const readColumns = (line) => {
+      const { left, right } = splitColumns(line);
+      if (!right) return { left, location: "" };
+      const found = parseDateColumn(right, true);
+      if (found) {
+        dates = dates || found;
+        return { left, location: "" };
+      }
+      return { left, location: stripBrackets(right) };
+    };
+
+    const head = readColumns(entry.header);
+    const { institution, degree: headDegree } = splitInstitutionAndDegree(stripScoreAndDates(head.left));
+    const institutionText = [splitGluedLocation(institution), head.location].filter(Boolean).join(", ");
+    const degreeParts = [
+      headDegree,
+      ...entry.extra.map((l) => stripScoreAndDates(readColumns(l).left)),
+    ].filter(Boolean);
+
     return {
       id: makeId(),
       level: "",
-      institution: splitGluedLocation(stripScoreAndDates(entry.header)),
-      degree,
+      institution: institutionText,
+      degree: degreeParts.join(", ").replace(/\s+,/g, ","),
       branch: "",
       board: "",
-      ...extractDates(allText),
+      ...(dates || extractDates(allText)),
       score,
     };
   });
@@ -310,17 +465,22 @@ function parseEducation(lines) {
 // `base` supplies every field the target form expects, defaulted to "", so
 // a parsed entry is a controlled-input-ready item and not just a bag of
 // whatever the extractor happened to find.
-function parseWithBullets(lines, titleField, base) {
-  return splitEntries(lines).map((entry) => ({
-    ...base,
-    id: makeId(),
-    [titleField]: entry.header,
-    bullets: entry.extra.length ? entry.extra.map((t) => makeBullet(t)) : [makeBullet()],
-  }));
+function parseWithBullets(lines, isWrap, titleField, base) {
+  return splitEntries(lines, isWrap).map((entry) => {
+    const { title, startDate, endDate } = parseEntryHeader(entry.header);
+    return {
+      ...base,
+      id: makeId(),
+      [titleField]: title,
+      startDate,
+      endDate,
+      bullets: toBullets(entry.extra),
+    };
+  });
 }
 
-function parseCertifications(lines) {
-  return splitEntries(lines).map((entry) => ({
+function parseCertifications(lines, isWrap) {
+  return splitEntries(lines, isWrap).map((entry) => ({
     id: makeId(),
     name: entry.header,
     issuer: entry.extra.join(", "),
@@ -334,9 +494,9 @@ function parseCertifications(lines) {
 // isContinuationLine heuristic as splitEntries, applied here because this
 // section previously had no merging logic at all: every line, wrapped or
 // not, became its own fake achievement.
-function parseAchievements(lines) {
+function parseAchievements(lines, isWrap) {
   const items = [];
-  let lastText = null;
+  let lastLine = null;
 
   for (const raw of lines) {
     const trimmed = raw.trim();
@@ -345,14 +505,13 @@ function parseAchievements(lines) {
     const text = stripBullet(trimmed);
     if (!text) continue;
 
-    if (!isBulleted && items.length && isContinuationLine(lastText, text)) {
+    if (!isBulleted && items.length && isWrap(lastLine, text)) {
       const i = items.length - 1;
       items[i] = mergeContinuation(items[i], text);
-      lastText = items[i];
     } else {
-      items.push(text);
-      lastText = text;
+      items.push(collapseSpaces(text));
     }
+    lastLine = text;
   }
 
   return items.map((text) => ({ id: makeId(), text }));
@@ -361,29 +520,58 @@ function parseAchievements(lines) {
 const SKILL_GROUP_LINE_RE = /^([A-Za-z][\w /&-]{1,30}):\s*(.+)$/;
 const SKILL_SPLIT_RE = /[,;|·•]/;
 
+function splitSkillItems(text) {
+  return text.split(SKILL_SPLIT_RE).map(collapseSpaces).filter(Boolean);
+}
+
+// A short line with no separators ("Soft Skills") is a group label for the
+// items on the lines below it; a line ending in "," wraps into whichever
+// list the line above went to.
+const SKILL_LABEL_ONLY_RE = /^[A-Za-z][A-Za-z &/]{1,30}$/;
+
 function parseSkills(lines) {
   const groups = [];
   const defaultItems = [];
+  let target = null;
   let prevLine = "";
+  let prevWasLabel = false;
   for (const raw of lines) {
-    const line = stripBullet(raw);
+    const line = collapseSpaces(stripBullet(raw));
     if (!line) continue;
     const match = line.match(SKILL_GROUP_LINE_RE);
-    const wrapsPrevGroup = !match && groups.length && /,\s*$/.test(prevLine);
-    prevLine = line;
     if (match) {
-      const items = match[2].split(SKILL_SPLIT_RE).map((s) => s.trim()).filter(Boolean);
-      if (items.length) groups.push({ id: makeId(), group: match[1].trim(), items });
-    } else if (wrapsPrevGroup) {
-      groups[groups.length - 1].items.push(
-        ...line.split(SKILL_SPLIT_RE).map((s) => s.trim()).filter(Boolean)
-      );
+      const items = splitSkillItems(match[2]);
+      if (items.length) {
+        groups.push({ id: makeId(), group: match[1].trim(), items });
+        target = items;
+      }
+      prevWasLabel = false;
+    } else if (
+      SKILL_LABEL_ONLY_RE.test(line) &&
+      line.split(" ").length <= 4 &&
+      !prevWasLabel &&
+      !/,\s*$/.test(prevLine)
+    ) {
+      const group = { id: makeId(), group: line, items: [] };
+      groups.push(group);
+      target = group.items;
+      prevWasLabel = true;
     } else {
-      defaultItems.push(...line.split(SKILL_SPLIT_RE).map((s) => s.trim()).filter(Boolean));
+      const wraps = target && (prevWasLabel || /,\s*$/.test(prevLine));
+      if (!wraps) target = defaultItems;
+      target.push(...splitSkillItems(line));
+      prevWasLabel = false;
     }
+    prevLine = line;
   }
-  if (defaultItems.length) groups.push({ id: makeId(), group: "Skills", items: defaultItems });
-  return groups;
+  // A "label" nothing followed was really a one-item skill line.
+  const result = groups.filter((g) => {
+    if (g.items.length) return true;
+    defaultItems.push(g.group);
+    return false;
+  });
+  if (defaultItems.length) result.push({ id: makeId(), group: "Skills", items: defaultItems });
+  return result;
 }
 
 /**
@@ -423,31 +611,23 @@ export function parseResumeText(rawText) {
     (current ? sections[current] : unmatched).push(line);
   }
 
+  const isWrap = makeWrapTest(bodyLines);
+
   return {
     personal,
-    summary: sections.summary.join(" "),
-    experience: parseWithBullets(sections.experience, "role", {
-      company: "",
-      startDate: "",
-      endDate: "",
-    }),
-    projects: parseWithBullets(sections.projects, "title", {
+    summary: collapseSpaces(sections.summary.join(" ")),
+    experience: parseExperience(sections.experience, isWrap),
+    projects: parseWithBullets(sections.projects, isWrap, "title", {
       source: "import",
       link: "",
-      startDate: "",
-      endDate: "",
       techStack: [],
       form: emptyProjectForm(),
     }),
-    education: parseEducation(sections.education),
+    education: parseEducation(sections.education, isWrap),
     skills: parseSkills(sections.skills),
-    achievements: parseAchievements(sections.achievements),
-    certifications: parseCertifications(sections.certifications),
-    responsibilities: parseWithBullets(sections.responsibilities, "role", {
-      org: "",
-      startDate: "",
-      endDate: "",
-    }),
+    achievements: parseAchievements(sections.achievements, isWrap),
+    certifications: parseCertifications(sections.certifications, isWrap),
+    responsibilities: parseWithBullets(sections.responsibilities, isWrap, "role", { org: "" }),
     unmatched: unmatched.join("\n"),
   };
 }
